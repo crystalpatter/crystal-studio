@@ -25,9 +25,20 @@ export async function GET(request) {
       status.meta = await account();
     } catch (err) {
       status.metaError = err.userMessage || err.message;
+      status.metaTokenCheck = tokenShape(err);
     }
   }
   return json(status);
+}
+
+// Describes what's wrong with a saved Page token without revealing it.
+function tokenShape(err) {
+  const t = pageToken();
+  let shape = 'ok';
+  if (t === (process.env.META_APP_SECRET || '').trim()) shape = 'is-app-secret';
+  else if (/\s/.test(t)) shape = 'has-spaces';
+  else if (!t.startsWith('EAA')) shape = 'not-a-token';
+  return { shape, length: t.length, meta: err.message || null };
 }
 
 // Asks Meta whether META_APP_ID + META_APP_SECRET belong together, and gives a

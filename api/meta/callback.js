@@ -41,16 +41,16 @@ export async function GET(request) {
 
   try {
     const shortToken = await exchange({
-      client_id: process.env.META_APP_ID,
-      client_secret: process.env.META_APP_SECRET,
+      client_id: (process.env.META_APP_ID || "").trim(),
+      client_secret: (process.env.META_APP_SECRET || "").trim(),
       redirect_uri: redirectUri(request),
       code: u.searchParams.get('code'),
     });
     // Long-lived user token → Page tokens made from it never expire.
     const longToken = await exchange({
       grant_type: 'fb_exchange_token',
-      client_id: process.env.META_APP_ID,
-      client_secret: process.env.META_APP_SECRET,
+      client_id: (process.env.META_APP_ID || "").trim(),
+      client_secret: (process.env.META_APP_SECRET || "").trim(),
       fb_exchange_token: shortToken,
     });
     const pages = await graph('GET', 'me/accounts', { fields: 'id,name,access_token,instagram_business_account{id,username}', limit: 50 }, { token: longToken });

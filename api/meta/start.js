@@ -25,12 +25,12 @@ export async function GET(request) {
   }
   const nonce = randomToken();
   const params = new URLSearchParams({
-    client_id: process.env.META_APP_ID,
+    client_id: (process.env.META_APP_ID || "").trim(),
     redirect_uri: redirectUri(request),
     state: `${nonce}.${sign(nonce)}`,
     response_type: 'code',
   });
-  if (process.env.META_LOGIN_CONFIG_ID) params.set('config_id', process.env.META_LOGIN_CONFIG_ID);
+  if (process.env.META_LOGIN_CONFIG_ID) params.set("config_id", process.env.META_LOGIN_CONFIG_ID.trim());
   else params.set('scope', SCOPES.join(','));
   return new Response(null, {
     status: 302,

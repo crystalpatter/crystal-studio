@@ -21,7 +21,7 @@
 - **Token:** Page tokens can't run ads. Use a long-lived *system user* token from Business Settings → Users → System users, created by Crystal and saved by her in Vercel as `META_ADS_TOKEN`. Never in code.
 - **Calls (Marketing API):**
   - `POST /act_<id>/campaigns` with `objective=OUTCOME_ENGAGEMENT` or `OUTCOME_TRAFFIC`, `status=PAUSED`, and `special_ad_categories=[]`.
-  - `POST /act_<id>/adsets` with `lifetime_budget`, `end_time`, `billing_event=IMPRESSIONS`, `optimization_goal`, and `targeting` (geo radius around 5b/201 Varsity Parade, age 22–45, women).
+  - `POST /act_<id>/adsets` with `lifetime_budget`, `end_time`, `billing_event=IMPRESSIONS`, `optimization_goal`, and `targeting` (geo radius around Shop 4, 195 Varsity Parade, age 22–45, women).
   - `POST /act_<id>/ads` with `creative={ object_story_id or source_instagram_media_id }` to boost an existing post.
   - Only after Crystal taps **Confirm** in the app: set the campaign's status to `ACTIVE`.
   - `GET /act_<id>/insights?date_preset=this_week_mon_today&fields=spend,reach,actions` for the dashboard and the cap check.

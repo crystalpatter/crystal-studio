@@ -23,7 +23,7 @@ If any screen looks different from these steps (Meta changes its screens often),
 2. **Add New…** → **Project** → find **crystal-studio** → **Import**.
    - If it's not in the list: **Adjust GitHub App Permissions** → allow **crystal-studio** → back to Vercel.
 3. Leave everything as it is (Framework: **Other**) → **Deploy**. Wait for the confetti.
-4. Click **Continue to Dashboard**. Under **Domains**, note your app's address, e.g. **crystal-studio.vercel.app**. This guide calls it **crystal-studio-seven.vercel.app**.
+4. Click **Continue to Dashboard**. Your app's address is **crystal-studio-seven.vercel.app** (shown under **Domains**).
 5. **Photo storage:** click **Storage** (top menu) → **Create Database** → **Blob** → name it `crystal-studio-media`.
    - If it asks about access, choose **Public**. Instagram has to be able to fetch the photos.
    - **Create** → connect it to **crystal-studio** (all environments) → **Connect**.

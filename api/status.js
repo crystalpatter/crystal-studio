@@ -11,6 +11,7 @@ export async function GET(request) {
   const status = {
     ...base,
     claude: Boolean(process.env.ANTHROPIC_API_KEY),
+    claudeKeyShape: keyShape(process.env.ANTHROPIC_API_KEY),
     database: storeConfigured() || !process.env.VERCEL,
     media: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
     devMedia: !process.env.VERCEL && !process.env.BLOB_READ_WRITE_TOKEN,
@@ -29,6 +30,13 @@ export async function GET(request) {
     }
   }
   return json(status);
+}
+
+// Length and prefix check for the Claude key; never returns the key.
+function keyShape(k) {
+  const t = (k || '').trim();
+  if (!t) return null;
+  return { length: t.length, prefixOk: t.startsWith('sk-ant-'), hasSpaces: /\s/.test(t) };
 }
 
 // Describes what's wrong with a saved Page token without revealing it.

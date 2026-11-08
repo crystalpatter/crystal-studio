@@ -23,7 +23,7 @@ If any screen looks different from these steps (Meta changes its screens often),
 2. **Add New…** → **Project** → find **crystal-studio** → **Import**.
    - If it's not in the list: **Adjust GitHub App Permissions** → allow **crystal-studio** → back to Vercel.
 3. Leave everything as it is (Framework: **Other**) → **Deploy**. Wait for the confetti.
-4. Click **Continue to Dashboard**. Under **Domains**, note your app's address, e.g. **crystal-studio.vercel.app**. This guide calls it **YOUR-APP**.
+4. Click **Continue to Dashboard**. Under **Domains**, note your app's address, e.g. **crystal-studio.vercel.app**. This guide calls it **crystal-studio-seven.vercel.app**.
 5. **Photo storage:** click **Storage** (top menu) → **Create Database** → **Blob** → name it `crystal-studio-media`.
    - If it asks about access, choose **Public**. Instagram has to be able to fetch the photos.
    - **Create** → connect it to **crystal-studio** (all environments) → **Connect**.
@@ -36,7 +36,7 @@ If any screen looks different from these steps (Meta changes its screens often),
    | `ANTHROPIC_API_KEY` | From **console.anthropic.com** → **API keys** → **Create key** → name it `crystal-studio` → copy. It's shown only once. While you're there, set a monthly **spend limit** (e.g. US$10) under **Limits**. |
 
 8. **Deployments** (top menu) → **⋯** next to the newest one → **Redeploy** → **Redeploy**. (Vercel only picks up new settings after a redeploy.)
-9. Open **https://YOUR-APP** → log in with your app password. Settings should show ✓ for App password, AI captions, Photo storage and Post calendar database.
+9. Open **https://crystal-studio-seven.vercel.app** → log in with your app password. Settings should show ✓ for App password, AI captions, Photo storage and Post calendar database.
 
 ## Part 3: Create the Meta app (15 min)
 
@@ -53,7 +53,7 @@ This is the "key" that lets Crystal Studio post to your accounts. It's free, it'
    - Find **Facebook Login for Business** → **Set up**.
    - If you see **Instagram** → **Set up** → choose **API setup with Facebook login**.
 4. **Facebook Login for Business** → **Settings** (left menu):
-   - **Valid OAuth Redirect URIs:** `https://YOUR-APP/api/meta/callback`
+   - **Valid OAuth Redirect URIs:** `https://crystal-studio-seven.vercel.app/api/meta/callback`
    - **Save changes**.
 5. **Facebook Login for Business** → **Configurations** → **Create configuration**:
    - Name: `Crystal Studio`. Login variation: **General**. Token type: **User access token**.
@@ -61,9 +61,9 @@ This is the "key" that lets Crystal Studio post to your accounts. It's free, it'
    - **Create**, then copy the **Configuration ID** (a long number).
    - (If there is no Configurations section, skip this step. The app will ask for the permissions directly.)
 6. **App settings** → **Basic**:
-   - **App domains:** `YOUR-APP`
-   - **Privacy Policy URL:** `https://YOUR-APP/privacy.html`
-   - **User data deletion:** choose **Data deletion instructions URL** → `https://YOUR-APP/privacy.html`
+   - **App domains:** `crystal-studio-seven.vercel.app`
+   - **Privacy Policy URL:** `https://crystal-studio-seven.vercel.app/privacy.html`
+   - **User data deletion:** choose **Data deletion instructions URL** → `https://crystal-studio-seven.vercel.app/privacy.html`
    - **Category:** Business and pages.
    - **Save changes**.
    - Click **Show** next to **App secret** (Facebook asks for your password).
@@ -80,7 +80,7 @@ This is the "key" that lets Crystal Studio post to your accounts. It's free, it'
 
 ## Part 4: Connect Instagram and Facebook (5 min)
 
-1. Open **https://YOUR-APP** → **Settings** → **Connect Instagram & Facebook**.
+1. Open **https://crystal-studio-seven.vercel.app** → **Settings** → **Connect Instagram & Facebook**.
 2. On Facebook's screen, continue as yourself. When it asks which Pages and Instagram accounts: choose **Crystal Cosmetics** and **@bycrystalcosmetics**, and allow everything it asks.
 3. You'll come back to a page that says **"Almost done: save your token in Vercel"**. Follow it:
    - **Copy token** (the box for the Page showing @bycrystalcosmetics).
@@ -92,7 +92,7 @@ The token doesn't expire on its own. If you ever change your Facebook password, 
 
 ## Part 5: Put it on your iPhone home screen (2 min)
 
-1. On your iPhone, open **Safari** → go to **https://YOUR-APP**.
+1. On your iPhone, open **Safari** → go to **https://crystal-studio-seven.vercel.app**.
 2. Tap **Share** (the square with the arrow) → **Add to Home Screen** → name it **CC Studio** → **Add**.
 3. Open **CC Studio** from your home screen and log in once with your app password. It stays logged in.
 
@@ -103,7 +103,7 @@ On your Mac: open the address in Safari → **File** → **Add to Dock**.
 Scheduled posts need GitHub to "knock on the door" every 10 minutes.
 
 1. Go to **github.com/crystalpatter/crystal-studio** → **Settings** → **Secrets and variables** → **Actions** → **Variables** tab → **New repository variable**.
-2. Name: `APP_URL`. Value: `https://YOUR-APP` (no slash at the end). **Add variable**.
+2. Name: `APP_URL`. Value: `https://crystal-studio-seven.vercel.app` (no slash at the end). **Add variable**.
 
 This is just the app's address, not a secret, so Claude can do this step for you if you tell it the address.
 

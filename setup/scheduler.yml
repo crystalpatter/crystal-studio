@@ -1,0 +1,43 @@
+# Publishes scheduled posts. Every 10 minutes GitHub pings the app's scheduler,
+# which posts anything whose time has come. (GitHub can run a few minutes late
+# at busy times, so a 6:00pm post may go out between about 6:00 and 6:20pm.)
+#
+# Set up once (setup guide, Part 4): in this GitHub repo → Settings → Secrets and
+# variables → Actions → Variables, add APP_URL = https://<your-app>.vercel.app
+name: Scheduler
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+    - cron: '17 3 1 * *' # monthly keep-alive (see below)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish-due-posts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Run the scheduler
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ]; then echo "APP_URL variable not set yet - skipping"; exit 0; fi
+          AUTH=()
+          if [ -n "$CRON_SECRET" ]; then AUTH=(-H "Authorization: Bearer $CRON_SECRET"); fi
+          curl -fsS --max-time 90 "${AUTH[@]}" "$APP_URL/api/cron"
+
+  # GitHub switches off scheduled jobs in public repos after 60 days without a
+  # commit. Once a month this makes an empty commit so the scheduler never stops.
+  keep-alive:
+    if: github.event.schedule == '17 3 1 * *'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          git config user.name "crystal-studio-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "Keep the scheduler switched on [skip ci]"
+          git push

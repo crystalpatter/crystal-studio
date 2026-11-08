@@ -1,0 +1,22 @@
+{
+  "name": "crystal-studio",
+  "private": true,
+  "type": "module",
+  "description": "Crystal Studio: post once to Instagram and Facebook for Crystal Cosmetics. Static PWA in public/ plus Vercel functions in api/.",
+  "scripts": {
+    "dev": "node dev/server.js",
+    "test": "node dev/test-publish.js",
+    "vendor": "esbuild dev/blob-client-entry.js --bundle --format=esm --minify --outfile=public/vendor/blob-client.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "@upstash/redis": "^1.41.0",
+    "@vercel/blob": "^2.8.2"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

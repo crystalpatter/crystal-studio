@@ -1,0 +1,15 @@
+{
+  "name": "Crystal Studio",
+  "short_name": "CC Studio",
+  "description": "Post once to Instagram and Facebook for Crystal Cosmetics.",
+  "start_url": "/#create",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FAF8F4",
+  "theme_color": "#2A2118",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

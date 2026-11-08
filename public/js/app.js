@@ -1,0 +1,677 @@
+import { check } from './guardrails.js';
+import { kindOf, videoType, prepareImage, imageInfo, aiPreview, videoFrame, clampRatio } from './media.js';
+
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const TZ = 'Australia/Brisbane'; // Gold Coast: UTC+10 all year (no daylight saving)
+const TZ_OFFSET_H = 10;
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+const state = { status: null, items: [], idea: null, posts: [], month: null, selectedDay: null, busy: false };
+
+// ---------- helpers ----------
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    method: opts.method || 'GET',
+    headers: opts.body ? { 'content-type': 'application/json' } : {},
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+    credentials: 'same-origin',
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && path !== '/api/login') {
+    show('login');
+    throw new Error('Please log in again.');
+  }
+  if (!res.ok) throw new Error(data.error || `Something went wrong (${res.status}).`);
+  return data;
+}
+
+function toast(msg, ms = 3500) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => (t.hidden = true), ms);
+}
+
+const store = {
+  get(k) {
+    try {
+      return localStorage.getItem('cc:' + k);
+    } catch {
+      return null;
+    }
+  },
+  set(k, v) {
+    try {
+      localStorage.setItem('cc:' + k, v);
+    } catch {
+      /* private mode: fine */
+    }
+  },
+};
+
+function fmt(ms, opts = { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) {
+  return new Intl.DateTimeFormat('en-AU', { timeZone: TZ, ...opts }).format(new Date(ms));
+}
+function dayKey(ms) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
+}
+// Gold Coast wall-clock parts → timestamp (works even if the phone is set to another time zone)
+function gcToMs(y, mo, d, h = 0, mi = 0) {
+  return Date.UTC(y, mo, d, h - TZ_OFFSET_H, mi);
+}
+function gcParts(ms) {
+  const d = new Date(ms + TZ_OFFSET_H * 3600000);
+  return { y: d.getUTCFullYear(), mo: d.getUTCMonth(), d: d.getUTCDate(), dow: d.getUTCDay(), h: d.getUTCHours(), mi: d.getUTCMinutes() };
+}
+function toLocalInput(ms) {
+  const p = gcParts(ms);
+  const z = (n) => String(n).padStart(2, '0');
+  return `${p.y}-${z(p.mo + 1)}-${z(p.d)}T${z(p.h)}:${z(p.mi)}`;
+}
+function fromLocalInput(v) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v || '');
+  return m ? gcToMs(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null;
+}
+
+// ---------- routing ----------
+const VIEWS = ['login', 'create', 'calendar', 'insights', 'settings'];
+function show(name) {
+  for (const v of VIEWS) $(`#view-${v}`).hidden = v !== name;
+  $('#tabs').hidden = name === 'login';
+  $$('#tabs a').forEach((a) => (a.dataset.tab === name ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
+  if (name === 'calendar') loadCalendar();
+  if (name === 'insights') loadInsights();
+  if (name === 'settings') renderSettings();
+  window.scrollTo(0, 0);
+}
+function route() {
+  if (!state.status?.loggedIn) return show('login');
+  const tab = location.hash.slice(1);
+  show(VIEWS.includes(tab) && tab !== 'login' ? tab : 'create');
+}
+window.addEventListener('hashchange', route);
+
+// ---------- login ----------
+$('#login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('#login-error').textContent = '';
+  try {
+    await api('/api/login', { method: 'POST', body: { password: $('#pw').value } });
+    $('#pw').value = '';
+    await boot();
+  } catch (err) {
+    $('#login-error').textContent = err.message;
+  }
+});
+$('#logout-btn').addEventListener('click', async () => {
+  await api('/api/login', { method: 'DELETE' }).catch(() => {});
+  state.status = { loggedIn: false };
+  show('login');
+});
+
+// ---------- create: media ----------
+$('#files').addEventListener('change', async (e) => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  for (const file of files) {
+    const kind = kindOf(file);
+    const item = { id: crypto.randomUUID(), file, kind, previewUrl: URL.createObjectURL(file) };
+    try {
+      if (kind === 'video') {
+        const f = await videoFrame(item.previewUrl);
+        Object.assign(item, { frame: f, thumbUrl: URL.createObjectURL(f.thumbBlob), duration: f.duration, width: f.width, height: f.height });
+      } else {
+        const info = await imageInfo(item);
+        Object.assign(item, { width: info.width, height: info.height, thumbUrl: item.previewUrl });
+      }
+      state.items.push(item);
+    } catch (err) {
+      toast(err.message, 5000);
+    }
+  }
+  if (state.items.length > 10) {
+    state.items = state.items.slice(0, 10);
+    toast('Instagram carousels hold up to 10. Kept the first 10.');
+  }
+  renderMedia();
+});
+
+function postType() {
+  if (!state.items.length) return null;
+  if (state.items.length > 1) return 'carousel';
+  return state.items[0].kind === 'video' ? 'reel' : 'image';
+}
+
+function renderMedia() {
+  $('#media-list').innerHTML = state.items
+    .map(
+      (it, i) => `<div class="thumb"><img src="${it.thumbUrl}" alt="Item ${i + 1}">
+      ${it.kind === 'video' ? `<span class="badge">▶ ${Math.round(it.duration || 0)}s</span>` : state.items.length > 1 ? `<span class="badge">${i + 1}</span>` : ''}
+      <button class="x" data-remove="${it.id}" aria-label="Remove">×</button></div>`
+    )
+    .join('');
+  const t = postType();
+  const notes = [];
+  if (t === 'image') notes.push('Photo post');
+  if (t === 'carousel') notes.push(`Carousel of ${state.items.length}. Photos will be cropped to the first photo's shape.`);
+  if (t === 'reel') {
+    const it = state.items[0];
+    notes.push('Reel');
+    if (it.duration < 3) notes.push('⚠ Reels must be at least 3 seconds.');
+    if (it.duration > 15 * 60) notes.push('⚠ Reels can be at most 15 minutes.');
+    if (it.height && it.width / it.height > 0.6) notes.push('Tip: vertical (9:16) video looks best as a Reel.');
+    if (it.file.size > 1024 * 1024 * 1024) notes.push('⚠ This video is over 1 GB, too big for Instagram.');
+  }
+  if (t === 'image' && state.items[0].width) {
+    const r = state.items[0].width / state.items[0].height;
+    if (r < 0.8 || r > 1.91) notes.push("It'll be cropped to fit Instagram's shape.");
+  }
+  $('#media-type').textContent = notes.join(' · ');
+}
+$('#media-list').addEventListener('click', (e) => {
+  const id = e.target.dataset.remove;
+  if (!id) return;
+  state.items = state.items.filter((i) => i.id !== id);
+  renderMedia();
+});
+
+// ---------- create: caption ----------
+$('#ideas').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-idea]');
+  if (!b) return;
+  state.idea = state.idea === b.dataset.idea ? null : b.dataset.idea;
+  $$('#ideas .chip').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.idea === state.idea)));
+});
+
+function fullCaption() {
+  const cap = $('#caption').value.trim();
+  const tags = $('#hashtags').value.trim();
+  return tags ? `${cap}\n\n${tags}` : cap;
+}
+
+function updateCaptionInfo() {
+  const full = fullCaption();
+  $('#count').textContent = full.length;
+  const tags = full.match(/#[\p{L}\p{N}_]+/gu) || [];
+  $('#tagcount').textContent = tags.length;
+  const warns = check(full).map((w) => `<li><b>“${esc(w.match)}”</b>: ${esc(w.why)}</li>`);
+  if (full.length > 2200) warns.push('<li>Instagram captions can be at most 2,200 characters.</li>');
+  if (tags.length > 30) warns.push('<li>Instagram allows at most 30 hashtags.</li>');
+  $('#warnings').innerHTML = warns.join('');
+  store.set('caption', $('#caption').value);
+  store.set('hashtags', $('#hashtags').value);
+}
+$('#caption').addEventListener('input', updateCaptionInfo);
+$('#hashtags').addEventListener('input', updateCaptionInfo);
+$('#notes').addEventListener('input', () => store.set('notes', $('#notes').value));
+
+$('#draft-btn').addEventListener('click', async () => {
+  const btn = $('#draft-btn');
+  const notes = $('#notes').value.trim();
+  if (!state.items.length && !notes) return toast('Add a photo or a few notes first.');
+  btn.disabled = true;
+  $('#draft-status').textContent = 'Looking at your photos and writing…';
+  $('#options').innerHTML = '';
+  try {
+    const images = [];
+    for (const it of state.items.slice(0, 4)) {
+      if (it.kind === 'video') images.push(await aiPreview(it.frame.canvas, it.frame.width, it.frame.height));
+      else {
+        const { img, width, height } = await imageInfo(it);
+        images.push(await aiPreview(img, width, height));
+      }
+    }
+    const data = await api('/api/caption', { method: 'POST', body: { images, notes, idea: state.idea, type: postType(), facebook: $('#to-fb').checked } });
+    $('#draft-status').innerHTML = data.whatISee ? `The AI sees: <i>${esc(data.whatISee)}</i>` : '';
+    state.hashtags = data.hashtags.join(' ');
+    $('#options').innerHTML = data.options
+      .map(
+        (o, i) => `<div class="option"><h3>${esc(o.style)}</h3><p>${esc(o.caption)}</p>
+        ${o.warnings.length ? `<ul class="warnings">${o.warnings.map((w) => `<li>${esc(w.why)}</li>`).join('')}</ul>` : ''}
+        <button class="btn small" data-use="${i}" type="button">Use this one</button></div>`
+      )
+      .join('');
+    state.options = data.options;
+  } catch (err) {
+    $('#draft-status').textContent = err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+$('#options').addEventListener('click', (e) => {
+  const i = e.target.dataset.use;
+  if (i === undefined) return;
+  $('#caption').value = state.options[i].caption;
+  if (!$('#hashtags').value.trim() || confirm('Replace your hashtags with the suggested ones?')) $('#hashtags').value = state.hashtags || '';
+  updateCaptionInfo();
+  $('#caption').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  toast('Caption added. Edit it however you like.');
+});
+
+// ---------- create: when ----------
+function renderQuickTimes() {
+  const now = Date.now();
+  const p = gcParts(now);
+  const picks = [];
+  const at = (offsetDays, h) => gcToMs(p.y, p.mo, p.d + offsetDays, h, 0);
+  if (at(1, 18) > now) picks.push({ label: 'Tomorrow 6pm', ms: at(1, 18) });
+  for (const [dow, name] of [
+    [1, 'Mon'],
+    [3, 'Wed'],
+    [5, 'Fri'],
+  ]) {
+    let add = (dow - p.dow + 7) % 7;
+    if (add === 0 && at(0, 18) < now + 3600000) add = 7;
+    const ms = at(add, 18);
+    const i = picks.findIndex((q) => q.ms === ms);
+    if (i >= 0) picks.splice(i, 1); // "Tomorrow" is also Mon/Wed/Fri: show it once, by its day name
+    picks.push({ label: `${name} ${add === 0 ? 'today' : fmt(ms, { day: 'numeric', month: 'short' })} 6pm`, ms });
+  }
+  picks.sort((a, b) => a.ms - b.ms);
+  $('#quick-times').innerHTML = picks.map((q) => `<button type="button" class="chip" data-ms="${q.ms}">${q.label}</button>`).join('');
+}
+$('#quick-times').addEventListener('click', (e) => {
+  const ms = e.target.dataset.ms;
+  if (ms) $('#when-at').value = toLocalInput(Number(ms));
+});
+$$('input[name=when]').forEach((r) =>
+  r.addEventListener('change', () => {
+    const later = $('input[name=when]:checked').value === 'later';
+    $('#when-later').hidden = !later;
+    $('#review-btn').textContent = 'Review post';
+    if (later) renderQuickTimes();
+  })
+);
+
+// ---------- create: review + publish ----------
+function scheduledAt() {
+  if ($('input[name=when]:checked').value !== 'later') return null;
+  return fromLocalInput($('#when-at').value);
+}
+
+$('#review-btn').addEventListener('click', () => {
+  if (!state.items.length) return toast('Add a photo or video first.');
+  const caption = fullCaption();
+  if (!caption) return toast('Add a caption first (or tap ✨ for ideas).');
+  if (caption.length > 2200) return toast('Caption is too long for Instagram (2,200 max).');
+  const when = scheduledAt();
+  if ($('input[name=when]:checked').value === 'later' && (!when || when < Date.now() + 120000)) return toast('Pick a time in the future.');
+  const t = postType();
+  const first = state.items[0];
+  $('#sheet-title').textContent = when ? 'Schedule this post?' : 'Post this now?';
+  $('#sheet-preview').hidden = false;
+  $('#sheet-progress').hidden = true;
+  $('#sheet-preview').innerHTML = `
+    ${t === 'carousel' ? `<div class="strip">${state.items.map((i) => `<img src="${i.thumbUrl}" alt="">`).join('')}</div>` : t === 'reel' ? `<video src="${first.previewUrl}" controls playsinline muted></video>` : `<img src="${first.thumbUrl}" alt="">`}
+    <div class="cap">${esc(caption)}</div>
+    <p class="where">${t === 'reel' ? 'Reel' : t === 'carousel' ? 'Carousel' : 'Photo'} → Instagram${$('#to-fb').checked ? ' + Facebook' : ''} · ${when ? fmt(when) + ' (Gold Coast time)' : 'right now'}</p>
+    ${check(caption).length ? '<p class="warnings"><li>Your caption has a brief warning (see under the caption). Post anyway only if you\'re sure.</li></p>' : ''}`;
+  $('#sheet-confirm').textContent = when ? 'Schedule' : 'Post now';
+  $('#sheet-confirm').disabled = false;
+  $('#sheet-cancel').textContent = 'Back';
+  $('#sheet').showModal();
+});
+$('#sheet-cancel').addEventListener('click', () => {
+  if (state.busy) return toast("Still working. It's safe to leave; it'll keep going.");
+  $('#sheet').close();
+});
+
+function steps(list) {
+  $('#sheet-progress').innerHTML = list.map((s) => `<div class="step ${s.state || ''}">${esc(s.label)}${s.bar !== undefined ? `<div class="bar"><i style="width:${s.bar}%"></i></div>` : ''}${s.note ? `<div class="muted small">${esc(s.note)}</div>` : ''}</div>`).join('');
+}
+
+async function uploadFile(blob, name, contentType, onProgress) {
+  if (state.status.devMedia) {
+    const r = await fetch(`/dev/upload?name=${encodeURIComponent(name)}`, { method: 'POST', body: blob, headers: { 'content-type': contentType } });
+    onProgress?.(100);
+    return (await r.json()).url;
+  }
+  const { upload } = await import('/vendor/blob-client.js');
+  const res = await upload(`posts/${name}`, blob, {
+    access: 'public',
+    handleUploadUrl: '/api/upload',
+    contentType,
+    multipart: blob.size > 20 * 1024 * 1024,
+    onUploadProgress: (e) => onProgress?.(e.percentage),
+  });
+  return res.url;
+}
+
+$('#sheet-confirm').addEventListener('click', async () => {
+  if (state.busy) return;
+  state.busy = true;
+  $('#sheet-confirm').disabled = true;
+  $('#sheet-preview').hidden = true;
+  $('#sheet-progress').hidden = false;
+  const when = scheduledAt();
+  const toFb = $('#to-fb').checked;
+  const s = [
+    { label: 'Preparing photos', state: 'doing' },
+    { label: 'Uploading', bar: 0 },
+    { label: when ? 'Scheduling' : 'Posting to Instagram' },
+    ...(toFb && !when ? [{ label: 'Posting to Facebook' }] : []),
+  ];
+  steps(s);
+  try {
+    const t = postType();
+    const ratio = t === 'carousel' ? clampRatio(state.items.find((i) => i.kind === 'image')?.width / state.items.find((i) => i.kind === 'image')?.height || 1) : null;
+    const prepared = [];
+    for (const it of state.items) {
+      if (it.kind === 'image') {
+        const out = await prepareImage(it, ratio);
+        prepared.push({ kind: 'image', blob: out.blob, type: 'image/jpeg', ext: 'jpg', width: out.width, height: out.height });
+      } else {
+        prepared.push({ kind: 'video', blob: it.file, type: videoType(it.file), ext: videoType(it.file) === 'video/quicktime' ? 'mov' : 'mp4', width: it.width, height: it.height, thumbBlob: it.frame.thumbBlob });
+      }
+    }
+    s[0].state = 'done';
+    s[1].state = 'doing';
+    steps(s);
+    const total = prepared.reduce((n, p) => n + p.blob.size, 0);
+    let doneBytes = 0;
+    const media = [];
+    const stamp = Date.now();
+    for (const [i, p] of prepared.entries()) {
+      const url = await uploadFile(p.blob, `${stamp}-${i}.${p.ext}`, p.type, (pct) => {
+        s[1].bar = Math.round(((doneBytes + (p.blob.size * pct) / 100) / total) * 100);
+        steps(s);
+      });
+      doneBytes += p.blob.size;
+      let thumb = p.kind === 'image' ? url : null;
+      if (p.thumbBlob) thumb = await uploadFile(p.thumbBlob, `${stamp}-${i}-thumb.jpg`, 'image/jpeg');
+      media.push({ url, kind: p.kind, width: p.width, height: p.height, thumb });
+    }
+    s[1].state = 'done';
+    s[1].bar = 100;
+    s[2].state = 'doing';
+    if (t !== 'image' && !when) s[2].note = 'Instagram can take a minute or two to process videos and carousels.';
+    steps(s);
+
+    let { post } = await api('/api/posts', { method: 'POST', body: { media, caption: fullCaption(), toFacebook: toFb, scheduledAt: when } });
+
+    if (when) {
+      s[2].state = 'done';
+      s[2].label = `Scheduled for ${fmt(post.scheduledAt)}`;
+      steps(s);
+    } else {
+      const started = Date.now();
+      while (post.status === 'publishing' && Date.now() - started < 12 * 60000) {
+        renderPublishSteps(s, post);
+        await new Promise((r) => setTimeout(r, 4000));
+        post = (await api(`/api/post?id=${post.id}`, { method: 'POST' })).post;
+      }
+      renderPublishSteps(s, post);
+    }
+    finishSheet(post);
+  } catch (err) {
+    const cur = s.find((x) => x.state === 'doing') || s[s.length - 1];
+    cur.state = 'bad';
+    cur.note = err.message;
+    steps(s);
+    $('#sheet-cancel').textContent = 'Close';
+  } finally {
+    state.busy = false;
+  }
+});
+
+function renderPublishSteps(s, post) {
+  const ig = s[2];
+  ig.state = post.ig.status === 'done' ? 'done' : post.ig.status === 'failed' ? 'bad' : 'doing';
+  ig.note = post.ig.error ? post.ig.error : ig.state === 'done' ? '' : ig.note;
+  if (s[3]) {
+    s[3].state = post.fb.status === 'done' ? 'done' : post.fb.status === 'failed' ? 'bad' : post.ig.status === 'done' ? 'doing' : '';
+    s[3].note = post.fb.error || '';
+  }
+  steps(s);
+}
+
+function finishSheet(post) {
+  const ok = ['published', 'scheduled'].includes(post.status);
+  $('#sheet-title').textContent = post.status === 'published' ? 'Posted ✓' : post.status === 'scheduled' ? 'Scheduled ✓' : post.status === 'partial' ? 'Posted to Instagram (Facebook failed)' : post.status === 'publishing' ? 'Still processing…' : "Didn't post";
+  const links = [];
+  if (post.ig.permalink) links.push(`<a class="btn small" href="${esc(post.ig.permalink)}" target="_blank" rel="noopener">View on Instagram</a>`);
+  if (post.status === 'publishing') links.push('<p class="small">You can close this. It will finish in the background and show in the Calendar.</p>');
+  if (['failed', 'partial'].includes(post.status)) links.push('<p class="small">You can retry from the Calendar tab.</p>');
+  $('#sheet-progress').insertAdjacentHTML('beforeend', `<div class="actions" style="margin-top:.6rem">${links.join(' ')}</div>`);
+  $('#sheet-cancel').textContent = 'Close';
+  $('#sheet-confirm').textContent = 'Start a new post';
+  $('#sheet-confirm').disabled = false;
+  $('#sheet-confirm').onclick = () => {
+    resetCreate();
+    $('#sheet').close();
+    $('#sheet-confirm').onclick = null;
+  };
+  if (ok) {
+    store.set('caption', '');
+    store.set('hashtags', '');
+    store.set('notes', '');
+  }
+}
+
+function resetCreate() {
+  state.items = [];
+  state.options = [];
+  renderMedia();
+  $('#caption').value = '';
+  $('#hashtags').value = '';
+  $('#notes').value = '';
+  $('#options').innerHTML = '';
+  $('#draft-status').textContent = '';
+  updateCaptionInfo();
+}
+
+// ---------- calendar ----------
+async function loadCalendar() {
+  if (!state.month) {
+    const p = gcParts(Date.now());
+    state.month = { y: p.y, mo: p.mo };
+  }
+  renderCalendar();
+  try {
+    const { y, mo } = state.month;
+    const from = gcToMs(y, mo - 1, 1);
+    const to = gcToMs(y, mo + 2, 1);
+    state.posts = (await api(`/api/posts?from=${from}&to=${to}`)).posts;
+    renderCalendar();
+  } catch (err) {
+    $('#post-list').innerHTML = `<p class="error">${esc(err.message)}</p>`;
+  }
+}
+function postTime(p) {
+  return p.publishedAt || p.scheduledAt || p.createdAt;
+}
+function renderCalendar() {
+  const { y, mo } = state.month;
+  $('#cal-title').textContent = fmt(gcToMs(y, mo, 15), { month: 'long', year: 'numeric' });
+  const first = gcToMs(y, mo, 1);
+  const startDow = (gcParts(first).dow + 6) % 7; // Monday first
+  const byDay = {};
+  for (const p of state.posts) (byDay[dayKey(postTime(p))] ||= []).push(p);
+  const today = dayKey(Date.now());
+  let html = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d) => `<div class="cal-dow">${d}</div>`).join('');
+  for (let i = 0; i < 42; i++) {
+    const ms = gcToMs(y, mo, 1 - startDow + i, 12);
+    const p = gcParts(ms);
+    const key = dayKey(ms);
+    const posts = byDay[key] || [];
+    const sugg = [1, 3, 5].includes(p.dow) && key >= today && !posts.length;
+    html += `<button class="cal-day ${p.mo !== mo ? 'other' : ''} ${key === today ? 'today' : ''} ${sugg ? 'sugg' : ''} ${state.selectedDay === key ? 'sel' : ''}" data-day="${key}" aria-label="${fmt(ms, { weekday: 'long', day: 'numeric', month: 'long' })}, ${posts.length} posts">
+      <span>${p.d}</span><span class="dots">${posts.map((x) => `<i class="dot ${x.status}"></i>`).join('')}</span></button>`;
+    if (i >= 34 && gcParts(gcToMs(y, mo, 1 - startDow + i + 1, 12)).mo !== mo && (i + 1) % 7 === 0) break;
+  }
+  $('#cal-grid').innerHTML = html;
+  renderList();
+}
+function renderList() {
+  let posts = [...state.posts].sort((a, b) => postTime(b) - postTime(a));
+  if (state.selectedDay) {
+    posts = posts.filter((p) => dayKey(postTime(p)) === state.selectedDay);
+    $('#list-title').textContent = fmt(gcToMs(...state.selectedDay.split('-').map((n, i) => (i === 1 ? n - 1 : +n)), 12), { weekday: 'long', day: 'numeric', month: 'long' });
+  } else $('#list-title').textContent = 'Upcoming and recent';
+  const upcoming = posts.filter((p) => p.status === 'scheduled').reverse();
+  const rest = posts.filter((p) => p.status !== 'scheduled');
+  const list = [...upcoming, ...rest];
+  $('#post-list').innerHTML = list.length
+    ? list.map(postCard).join('')
+    : `<p class="muted">${state.selectedDay ? 'Nothing on this day.' : 'No posts yet.'} <a href="#create">Create one</a>. The brief suggests Mon/Wed/Fri: healed result, education, behind the scenes.</p>`;
+}
+const STATUS_LABEL = { scheduled: 'Scheduled', publishing: 'Posting…', published: 'Posted', failed: 'Failed', partial: 'Facebook failed' };
+function postCard(p) {
+  const thumb = p.media.find((m) => m.thumb)?.thumb;
+  const err = p.ig.error || p.fb.error;
+  return `<article class="post" data-id="${p.id}">
+    ${thumb ? `<img src="${esc(thumb)}" alt="" loading="lazy">` : '<div class="ph"></div>'}
+    <div>
+      <div class="meta"><span class="pill ${p.status}">${STATUS_LABEL[p.status] || p.status}</span> ${fmt(postTime(p))} · ${p.type === 'reel' ? 'Reel' : p.type === 'carousel' ? 'Carousel' : 'Photo'}${p.toFacebook ? ' · IG + FB' : ' · IG'}</div>
+      <p class="cap">${esc(p.caption)}</p>
+      ${err && p.status !== 'published' ? `<p class="err">${esc(err)}</p>` : ''}
+      <div class="actions">
+        ${p.ig.permalink ? `<a class="btn small ghost" href="${esc(p.ig.permalink)}" target="_blank" rel="noopener">View</a>` : ''}
+        ${p.status === 'scheduled' ? `<button class="btn small ghost" data-act="now">Post now</button><button class="btn small ghost" data-act="time">Change time</button><button class="btn small danger" data-act="delete">Cancel</button>` : ''}
+        ${['failed', 'partial'].includes(p.status) ? `<button class="btn small" data-act="retry">Retry</button><button class="btn small danger" data-act="delete">Remove</button>` : ''}
+        ${p.status === 'publishing' ? `<button class="btn small ghost" data-act="check">Check progress</button>` : ''}
+      </div>
+    </div></article>`;
+}
+$('#cal-grid').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-day]');
+  if (!b) return;
+  state.selectedDay = state.selectedDay === b.dataset.day ? null : b.dataset.day;
+  renderCalendar();
+});
+$('#cal-prev').addEventListener('click', () => {
+  state.month.mo -= 1;
+  if (state.month.mo < 0) Object.assign(state.month, { mo: 11, y: state.month.y - 1 });
+  state.selectedDay = null;
+  loadCalendar();
+});
+$('#cal-next').addEventListener('click', () => {
+  state.month.mo += 1;
+  if (state.month.mo > 11) Object.assign(state.month, { mo: 0, y: state.month.y + 1 });
+  state.selectedDay = null;
+  loadCalendar();
+});
+$('#post-list').addEventListener('click', async (e) => {
+  const act = e.target.dataset.act;
+  if (!act) return;
+  const id = e.target.closest('[data-id]').dataset.id;
+  const post = state.posts.find((p) => p.id === id);
+  e.target.disabled = true;
+  try {
+    if (act === 'delete') {
+      if (!confirm(post.status === 'scheduled' ? 'Cancel this scheduled post?' : 'Remove this from the calendar? (It does not delete anything already on Instagram.)')) return;
+      await api(`/api/post?id=${id}`, { method: 'DELETE' });
+      toast('Removed.');
+    } else if (act === 'retry') {
+      toast('Retrying…', 8000);
+      const { post: p } = await api(`/api/post?id=${id}`, { method: 'PATCH', body: { action: 'retry' } });
+      toast(p.status === 'published' ? 'Posted ✓' : STATUS_LABEL[p.status]);
+    } else if (act === 'time') {
+      const v = prompt('New date and time (Gold Coast), as YYYY-MM-DD HH:MM', toLocalInput(post.scheduledAt).replace('T', ' '));
+      if (!v) return;
+      const ms = fromLocalInput(v.trim().replace(' ', 'T'));
+      if (!ms) return toast('Use the format 2026-11-20 18:00');
+      await api(`/api/post?id=${id}`, { method: 'PATCH', body: { scheduledAt: ms } });
+      toast(`Moved to ${fmt(ms)}`);
+    } else if (act === 'now') {
+      if (!confirm('Post this to Instagram right now?')) return;
+      toast('Posting…', 10000);
+      const { post: p } = await api(`/api/post?id=${id}`, { method: 'PATCH', body: { action: 'now' } });
+      toast(STATUS_LABEL[p.status] || p.status);
+    } else if (act === 'check') {
+      const { post: p } = await api(`/api/post?id=${id}`, { method: 'POST' });
+      toast(STATUS_LABEL[p.status] || p.status);
+    }
+    await loadCalendar();
+  } catch (err) {
+    toast(err.message, 6000);
+  } finally {
+    e.target.disabled = false;
+  }
+});
+
+// ---------- insights ----------
+async function loadInsights(fresh = false) {
+  if (!state.status?.meta) {
+    $('#ins-tiles').innerHTML = '';
+    $('#ins-media').innerHTML = '';
+    $('#ins-note').innerHTML = 'Connect Instagram first (Settings tab).';
+    return;
+  }
+  $('#ins-note').textContent = 'Loading…';
+  try {
+    const d = await api(`/api/insights${fresh ? '?fresh=1' : ''}`);
+    const tiles = [{ label: 'Followers', value: d.followers }, ...d.totals];
+    $('#ins-tiles').innerHTML = tiles
+      .filter((t) => typeof t.value === 'number')
+      .map((t) => `<div class="tile"><div class="n">${t.value.toLocaleString('en-AU')}</div><div class="l">${esc(t.label)}</div></div>`)
+      .join('');
+    $('#ins-note').textContent = `@${d.username} · updated ${fmt(d.fetchedAt, { hour: 'numeric', minute: '2-digit', day: 'numeric', month: 'short' })}. Instagram can take up to 48 hours to finish counting.`;
+    $('#ins-media').innerHTML = d.media
+      .map((m) => {
+        const s = m.stats;
+        const stat = (n, l) => (typeof n === 'number' ? `<span><b>${n.toLocaleString('en-AU')}</b> ${l}</span>` : '');
+        return `<article class="post">${m.thumb ? `<img src="${esc(m.thumb)}" alt="" loading="lazy">` : '<div class="ph"></div>'}
+        <div><div class="meta">${m.type} · ${fmt(Date.parse(m.timestamp), { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+        <p class="cap">${esc(m.caption)}</p>
+        <div class="stats">${stat(s.reach, 'reached')}${stat(s.views, 'views')}${stat(s.saved, 'saves')}${stat(s.shares, 'shares')}${stat(s.likes, 'likes')}${stat(s.comments, 'comments')}</div>
+        <div class="actions"><a class="btn small ghost" href="${esc(m.permalink)}" target="_blank" rel="noopener">View</a></div></div></article>`;
+      })
+      .join('');
+  } catch (err) {
+    $('#ins-note').textContent = err.message;
+  }
+}
+$('#ins-refresh').addEventListener('click', () => loadInsights(true));
+
+// ---------- settings ----------
+function renderSettings() {
+  const s = state.status || {};
+  const item = (ok, label, help) => `<li class="${ok ? 'ok' : 'no'}">${label}${!ok && help ? `<small>${help}</small>` : ''}</li>`;
+  $('#checks').innerHTML = [
+    item(s.passwordSet, 'App password'),
+    item(s.claude, 'AI captions (Claude)', 'Add ANTHROPIC_API_KEY in Vercel (setup guide, Part 3).'),
+    item(s.media || s.devMedia, 'Photo & video storage', 'In Vercel: Storage → Blob → Public (setup guide, Part 3).'),
+    item(s.database, 'Post calendar database', 'In Vercel: Storage → Upstash Redis (setup guide, Part 3).'),
+    item(s.metaApp, 'Meta app', 'Add META_APP_ID and META_APP_SECRET in Vercel (setup guide, Part 2).'),
+    item(Boolean(s.meta?.igId), s.meta?.igId ? `Instagram <b>@${esc(s.meta.igUsername)}</b>` : 'Instagram', s.metaError || (s.tokenSet ? 'The Page has no Instagram Business account linked.' : 'Tap Connect below, then save META_PAGE_TOKEN in Vercel.')),
+    item(Boolean(s.meta?.pageId), s.meta?.pageName ? `Facebook Page <b>${esc(s.meta.pageName)}</b>` : 'Facebook Page'),
+  ].join('');
+  $('#connect-btn').textContent = s.meta ? 'Reconnect Instagram & Facebook' : 'Connect Instagram & Facebook';
+  $('#connect-btn').classList.toggle('ghost', Boolean(s.meta));
+}
+
+function renderBanner() {
+  const s = state.status;
+  const missing = [];
+  if (!s.meta?.igId) missing.push('connect Instagram');
+  if (!s.claude) missing.push('add the AI key');
+  if (!(s.media || s.devMedia)) missing.push('add photo storage');
+  $('#setup-banner').hidden = !missing.length;
+  $('#setup-banner').innerHTML = `Almost set up: ${missing.join(', ')}. <a href="#settings">Open Settings</a>`;
+  $('#acct').textContent = s.meta?.igUsername ? `@${s.meta.igUsername}` : '';
+  if (s.meta?.igUsername) $('#ig-handle').textContent = `@${s.meta.igUsername}`;
+}
+
+// ---------- start ----------
+async function boot() {
+  try {
+    state.status = await api('/api/status');
+  } catch {
+    state.status = { loggedIn: false };
+  }
+  if (state.status.loggedIn) {
+    renderBanner();
+    $('#caption').value = store.get('caption') || '';
+    $('#hashtags').value = store.get('hashtags') || '';
+    $('#notes').value = store.get('notes') || '';
+    updateCaptionInfo();
+    if (state.status.meta) api('/api/run', { method: 'POST' }).catch(() => {});
+  }
+  route();
+}
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+boot();

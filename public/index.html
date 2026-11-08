@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Crystal Studio</title>
+  <meta name="description" content="Post once to Instagram and Facebook for Crystal Cosmetics.">
+  <meta name="theme-color" content="#2A2118">
+  <meta name="robots" content="noindex">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CC Studio">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <header class="top">
+    <img src="/icons/icon.svg" alt="" width="32" height="32">
+    <span class="brand">Crystal <em>Studio</em></span>
+    <span id="acct" class="acct"></span>
+  </header>
+
+  <!-- Login -->
+  <section id="view-login" class="view" hidden>
+    <div class="card narrow">
+      <h1>Welcome back</h1>
+      <p class="muted">Enter your Crystal Studio password.</p>
+      <form id="login-form">
+        <label for="pw">Password</label>
+        <input id="pw" type="password" autocomplete="current-password" required>
+        <button class="btn wide" type="submit">Log in</button>
+        <p id="login-error" class="error" role="alert"></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- Create -->
+  <section id="view-create" class="view" hidden>
+    <div id="setup-banner" class="banner" hidden></div>
+
+    <div class="card">
+      <h2>1 · Photos or video</h2>
+      <label class="picker" for="files">
+        <span class="picker-icon" aria-hidden="true">＋</span>
+        <span><b>Choose photos or a video</b><br><span class="muted small">One photo, up to 10 for a carousel, or one video for a Reel</span></span>
+      </label>
+      <input id="files" type="file" accept="image/*,video/*" multiple hidden>
+      <div id="media-list" class="media-list"></div>
+      <p id="media-type" class="muted small"></p>
+    </div>
+
+    <div class="card">
+      <h2>2 · Caption</h2>
+      <p class="muted small">What kind of post is it?</p>
+      <div class="chips" id="ideas">
+        <button type="button" class="chip" data-idea="healed">Healed result</button>
+        <button type="button" class="chip" data-idea="education">Education</button>
+        <button type="button" class="chip" data-idea="behind">Behind the scenes</button>
+        <button type="button" class="chip" data-idea="bookings">Taking bookings</button>
+        <button type="button" class="chip" data-idea="offer">Brow lamination offer</button>
+      </div>
+      <label for="notes">Notes for the AI <span class="muted">(optional)</span></label>
+      <textarea id="notes" rows="2" placeholder="e.g. healed lip blush at 6 weeks, client wanted a soft rosy pink"></textarea>
+      <button id="draft-btn" class="btn wide" type="button">✨ Write my caption</button>
+      <p id="draft-status" class="muted small" role="status"></p>
+      <div id="options" class="options"></div>
+
+      <label for="caption">Caption</label>
+      <textarea id="caption" rows="8" placeholder="Write your caption, or tap ✨ above for ideas"></textarea>
+      <label for="hashtags">Hashtags</label>
+      <textarea id="hashtags" rows="3" placeholder="#lipblush #goldcoastlipblush"></textarea>
+      <p class="muted small"><span id="count">0</span> characters · <span id="tagcount">0</span> hashtags</p>
+      <ul id="warnings" class="warnings"></ul>
+    </div>
+
+    <div class="card">
+      <h2>3 · Where and when</h2>
+      <label class="toggle"><input id="to-ig" type="checkbox" checked disabled> <span>Instagram <b id="ig-handle">@bycrystalcosmetics</b></span></label>
+      <label class="toggle"><input id="to-fb" type="checkbox" checked> <span>Also post to Facebook</span></label>
+      <div class="seg" role="radiogroup" aria-label="When">
+        <label><input type="radio" name="when" value="now" checked><span>Post now</span></label>
+        <label><input type="radio" name="when" value="later"><span>Schedule</span></label>
+      </div>
+      <div id="when-later" hidden>
+        <div class="chips" id="quick-times"></div>
+        <label for="when-at">Date and time (Gold Coast time)</label>
+        <input id="when-at" type="datetime-local">
+      </div>
+      <button id="review-btn" class="btn wide big" type="button">Review post</button>
+    </div>
+  </section>
+
+  <!-- Calendar -->
+  <section id="view-calendar" class="view" hidden>
+    <div class="card">
+      <div class="cal-head">
+        <button class="icon-btn" id="cal-prev" aria-label="Previous month">‹</button>
+        <h2 id="cal-title"></h2>
+        <button class="icon-btn" id="cal-next" aria-label="Next month">›</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <p class="muted small legend"><span class="dot scheduled"></span> Scheduled <span class="dot published"></span> Posted <span class="dot failed"></span> Needs attention <span class="sugg-key">M W F</span> Suggested days</p>
+    </div>
+    <div class="card">
+      <h2 id="list-title">Upcoming and recent</h2>
+      <div id="post-list" class="post-list"></div>
+    </div>
+  </section>
+
+  <!-- Insights -->
+  <section id="view-insights" class="view" hidden>
+    <div class="card">
+      <div class="row-between"><h2>Last 28 days</h2><button class="btn ghost small" id="ins-refresh" type="button">Refresh</button></div>
+      <div id="ins-tiles" class="tiles"></div>
+      <p id="ins-note" class="muted small"></p>
+    </div>
+    <div class="card">
+      <h2>Recent posts</h2>
+      <div id="ins-media" class="post-list"></div>
+    </div>
+  </section>
+
+  <!-- Settings -->
+  <section id="view-settings" class="view" hidden>
+    <div class="card">
+      <h2>Connections</h2>
+      <ul id="checks" class="checks"></ul>
+      <a id="connect-btn" class="btn wide" href="/api/meta/start">Connect Instagram &amp; Facebook</a>
+      <p class="muted small">You log in on Facebook's own page. This app never sees your password.</p>
+    </div>
+    <div class="card">
+      <h2>Ads <span class="pill">Coming later</span></h2>
+      <p>A later version will let you run small Instagram/Facebook ads from here with a hard weekly budget cap you set.</p>
+      <p class="muted small">Ads always cost money, paid straight to Meta, whichever app starts them. This app only removes the agency fee. Until then, use Meta Business Suite to see or pause any ads.</p>
+    </div>
+    <div class="card">
+      <h2>Backup plan</h2>
+      <p class="small">If anything here isn't working, <b>Meta Business Suite</b> (free app) can post and schedule to Instagram and Facebook together.</p>
+      <button id="logout-btn" class="btn ghost wide" type="button">Log out</button>
+    </div>
+  </section>
+
+  <!-- Review / progress sheet -->
+  <dialog id="sheet" class="sheet">
+    <div class="sheet-body">
+      <h2 id="sheet-title">Ready to post?</h2>
+      <div id="sheet-preview" class="preview"></div>
+      <div id="sheet-progress" class="progress" hidden></div>
+      <div class="sheet-actions">
+        <button id="sheet-cancel" class="btn ghost" type="button">Back</button>
+        <button id="sheet-confirm" class="btn" type="button">Post now</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <nav class="tabs" id="tabs" hidden>
+    <a href="#create" data-tab="create"><span aria-hidden="true">✚</span>Create</a>
+    <a href="#calendar" data-tab="calendar"><span aria-hidden="true">▦</span>Calendar</a>
+    <a href="#insights" data-tab="insights"><span aria-hidden="true">◔</span>Insights</a>
+    <a href="#settings" data-tab="settings"><span aria-hidden="true">⚙︎</span>Settings</a>
+  </nav>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

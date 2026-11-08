@@ -635,12 +635,21 @@ function renderSettings() {
     item(s.claude, 'AI captions (Claude)', 'Add ANTHROPIC_API_KEY in Vercel (setup guide, Part 3).'),
     item(s.media || s.devMedia, 'Photo & video storage', 'In Vercel: Storage → Blob → Public (setup guide, Part 3).'),
     item(s.database, 'Post calendar database', 'In Vercel: Storage → Upstash Redis (setup guide, Part 3).'),
-    item(s.metaApp, 'Meta app', 'Add META_APP_ID and META_APP_SECRET in Vercel (setup guide, Part 2).'),
+    item(s.metaApp && s.metaAppCheck?.ok !== false, 'Meta app', !s.metaApp ? 'Add META_APP_ID and META_APP_SECRET in Vercel (setup guide, Part 3).' : metaAppHint(s.metaAppCheck)),
     item(Boolean(s.meta?.igId), s.meta?.igId ? `Instagram <b>@${esc(s.meta.igUsername)}</b>` : 'Instagram', s.metaError || (s.tokenSet ? 'The Page has no Instagram Business account linked.' : 'Tap Connect below, then save META_PAGE_TOKEN in Vercel.')),
     item(Boolean(s.meta?.pageId), s.meta?.pageName ? `Facebook Page <b>${esc(s.meta.pageName)}</b>` : 'Facebook Page'),
   ].join('');
   $('#connect-btn').textContent = s.meta ? 'Reconnect Instagram & Facebook' : 'Connect Instagram & Facebook';
   $('#connect-btn').classList.toggle('ghost', Boolean(s.meta));
+}
+
+function metaAppHint(c) {
+  if (!c || c.ok !== false) return '';
+  const fix = 'In Meta: Crystal Studio (App ID in Vercel) → App settings → Basic → click Show next to App secret, then copy the 32 letters/numbers and paste them into META_APP_SECRET in Vercel, Save, and redeploy.';
+  if (c.shape === 'dots') return `The saved App secret is the hidden dots, not the secret itself. ${fix}`;
+  if (c.shape === 'is-app-id') return `The App ID was saved as the secret. ${fix}`;
+  if (c.shape.startsWith('not-32')) return `The saved App secret doesn't look like a Meta secret (it should be 32 letters/numbers; this one is ${c.shape.replace('not-32 ', '')}). ${fix}`;
+  return `Meta says the App secret doesn't match this App ID. It may be from the other Crystal Studio app. ${fix}`;
 }
 
 function renderBanner() {

@@ -73,6 +73,9 @@ export const POST = authed(async (request) => {
     if (err instanceof Anthropic.RateLimitError) return fail('Claude is busy. Try again in a minute.', 429);
     if (err instanceof Anthropic.APIError) {
       console.error('Claude API error', err.status, err.error?.error?.type, err.error?.error?.message);
+      if (/credit balance/i.test(err.error?.error?.message || '')) {
+        return fail('Your Claude account has run out of credit. Add funds at console.anthropic.com → Billing, then try again. You can still write captions yourself.', 402);
+      }
       const detail = err.status === 400 && err.error?.error?.message ? `: ${String(err.error.error.message).slice(0, 200)}` : '';
       return fail(`Claude couldn't write a caption right now (${err.status})${detail}.`, 502);
     }

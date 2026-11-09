@@ -2,6 +2,8 @@
 
 Open **CC Studio** from your home screen.
 
+**First time on your iPhone:** open **crystal-studio-seven.vercel.app** in **Safari** → tap **Share (□↑)** → **Add to Home Screen** → **Add**. Log in once with your app password.
+
 ## Make a post
 
 1. **Choose photos or a video.**
@@ -11,12 +13,14 @@ Open **CC Studio** from your home screen.
 2. **Caption.**
    - Tap the kind of post (Healed result, Education, Behind the scenes, Taking bookings, Brow lamination offer).
    - Optional: add a few words in **Notes for the AI**, e.g. *"healed lip blush 6 weeks, client wanted soft rosy pink"*.
-   - Tap **✨ Write my caption**. You get three options. Tap **Use this one**, then edit anything you like.
+   - Or just type your own caption straight into the **Caption** box. The AI is optional.
+   - Tap **✨ Write my caption**. (This needs credit on your Claude account at console.anthropic.com → Billing; a caption costs a few cents. If it says it's out of credit, write your own or top up.) You get three options. Tap **Use this one**, then edit anything you like.
    - Check the line **"The AI sees: …"**. If it misread the photo, fix your notes and tap ✨ again.
    - ⚠ warnings appear if a caption breaks your brief (e.g. "best", "painless", a client count, hair strokes). Fix them before posting.
 3. **Where and when.**
    - Instagram is always on. **Also post to Facebook** is on by default.
-   - **Post now**, or **Schedule** and pick a time. The Mon / Wed / Fri 6pm buttons follow your 30-day plan.
+   - **Post now**, or **Schedule** and pick a time (Gold Coast time). The Mon / Wed / Fri 6pm buttons follow your 30-day plan.
+   - Scheduled posts go out within about 10 minutes of the time you pick, never early. Your phone and Mac don't need to be on.
 4. **Review post** → check the preview → **Post now** / **Schedule**.
    - Videos and carousels take a minute or two while Instagram processes them. You can close the app; it finishes on its own.
    - When it says **Posted ✓**, tap **View on Instagram** to see it.

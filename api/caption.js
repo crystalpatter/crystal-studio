@@ -71,7 +71,11 @@ export const POST = authed(async (request) => {
   } catch (err) {
     if (err instanceof Anthropic.AuthenticationError) return fail('The Claude API key in Vercel is not valid. Check ANTHROPIC_API_KEY.', 502);
     if (err instanceof Anthropic.RateLimitError) return fail('Claude is busy. Try again in a minute.', 429);
-    if (err instanceof Anthropic.APIError) return fail(`Claude couldn't write a caption right now (${err.status}).`, 502);
+    if (err instanceof Anthropic.APIError) {
+      console.error('Claude API error', err.status, err.error?.error?.type, err.error?.error?.message);
+      const detail = err.status === 400 && err.error?.error?.message ? `: ${String(err.error.error.message).slice(0, 200)}` : '';
+      return fail(`Claude couldn't write a caption right now (${err.status})${detail}.`, 502);
+    }
     throw err;
   }
   if (response.stop_reason === 'refusal') return fail("Claude wouldn't write a caption for this one. Try different notes or write it yourself.", 422);

@@ -779,9 +779,45 @@ function renderSettings() {
     item(Boolean(s.meta?.igId), s.meta?.igId ? `Instagram <b>@${esc(s.meta.igUsername)}</b>` : 'Instagram', s.metaError || (s.tokenSet ? 'The Page has no Instagram Business account linked.' : 'Tap Connect below and log in on Facebook.')),
     item(Boolean(s.meta?.pageId), s.meta?.pageName ? `Facebook Page <b>${esc(s.meta.pageName)}</b>` : 'Facebook Page'),
   ].join('');
+  renderEleven(s.eleven);
   $('#connect-btn').textContent = s.meta ? 'Reconnect Instagram & Facebook' : 'Connect Instagram & Facebook';
   $('#connect-btn').classList.toggle('ghost', Boolean(s.meta));
 }
+
+// ---------- settings: ElevenLabs ----------
+function renderEleven(e = { connected: false }) {
+  state.status.eleven = e;
+  $('#el-pill').textContent = e.connected ? 'Connected' : 'Optional';
+  $('#el-pill').className = `pill ${e.connected ? 'published' : ''}`;
+  $('#el-form').hidden = e.connected;
+  $('#el-actions').hidden = !e.connected;
+  const usage = typeof e.limit === 'number' && e.limit > 0 ? ` · ${Math.max(0, e.limit - (e.used || 0)).toLocaleString('en-AU')} of ${e.limit.toLocaleString('en-AU')} credits left this month` : '';
+  $('#el-state').innerHTML = !e.connected
+    ? ''
+    : `<ul class="checks"><li class="ok">ElevenLabs connected${e.plan ? ` · <b>${esc(e.plan)}</b> plan` : ''}${usage}${e.limited ? '<small>This key has limited permissions, so the plan can’t be read. When creating a key, leave access unrestricted (or allow Text to Speech, Music, Sound Effects and User read).</small>' : ''}${e.plan === 'free' ? '<small>The free plan doesn’t allow business use. Upgrade to Starter before using anything it makes in a post.</small>' : ''}</li></ul>`;
+}
+async function elevenAction(body, okMsg, btn) {
+  btn.disabled = true;
+  try {
+    const { eleven } = await api('/api/status', { method: 'PATCH', body });
+    renderEleven(eleven);
+    toast(okMsg);
+  } catch (err) {
+    toast(err.message, 7000);
+  } finally {
+    btn.disabled = false;
+  }
+}
+$('#el-save').addEventListener('click', async (e) => {
+  const key = $('#el-key').value.trim();
+  if (!key) return toast('Paste your ElevenLabs API key first.');
+  await elevenAction({ action: 'eleven-save', key }, 'ElevenLabs connected ✓', e.target);
+  if (state.status.eleven?.connected) $('#el-key').value = '';
+});
+$('#el-check').addEventListener('click', (e) => elevenAction({ action: 'eleven-check' }, 'ElevenLabs is connected ✓', e.target));
+$('#el-remove').addEventListener('click', (e) => {
+  if (confirm('Disconnect ElevenLabs? The saved key is deleted from the app.')) elevenAction({ action: 'eleven-remove' }, 'ElevenLabs disconnected.', e.target);
+});
 
 function metaAppHint(c) {
   if (!c || c.ok !== false) return '';

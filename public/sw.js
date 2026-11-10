@@ -1,6 +1,6 @@
 // Keeps the app's screens available offline / instantly. Never caches API
 // calls or uploads, so posts and numbers are always live.
-const CACHE = 'cc-studio-v2';
+const CACHE = 'cc-studio-v3';
 const SHELL = ['/', '/app.css', '/js/app.js', '/js/media.js', '/js/guardrails.js', '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {

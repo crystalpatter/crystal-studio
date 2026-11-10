@@ -1,4 +1,4 @@
-# Crystal Studio
+# Marketing Hub (repo: crystal-studio)
 
 Post once to Instagram (@bycrystalcosmetics) and the Facebook Page for **Crystal Cosmetics**, from an iPhone home-screen app.
 
@@ -6,6 +6,8 @@ Post once to Instagram (@bycrystalcosmetics) and the Facebook Page for **Crystal
 - Photo, carousel and Reel publishing via the Instagram Graph API, then an optional Facebook Page post via the Pages API.
 - Post now or schedule; calendar; small insights view.
 - **Autopilot:** a content bank that fills the posting days on its own, re-sharing a past top post when the bank is empty; an 8am email report (connections, posts, Instagram, website visits and booking taps).
+- **Leads:** the morning email lists everyone who commented or reacted, with a profile link (`lib/leads.js`).
+- **ElevenLabs:** key connection in Settings (`lib/eleven.js`); creation features not built yet.
 - Later: small ads with a hard weekly cap ([docs/ADS-PHASE.md](docs/ADS-PHASE.md), design only).
 
 **For Crystal:** [docs/SETUP.md](docs/SETUP.md) (one-time setup) · [docs/HOW-TO.md](docs/HOW-TO.md) (daily use) · [docs/DECISIONS.md](docs/DECISIONS.md) (why this route, costs, limits)

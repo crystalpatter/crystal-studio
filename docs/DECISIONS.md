@@ -62,3 +62,10 @@ You pick photos or a video in the app. Photos are converted to JPEG and cropped 
 - **Confirmed bookings from Timely.** Timely has no free way to hand bookings to another app. The report counts taps on the website's booking buttons instead.
 - **Google Ads / Meta Ads accounts.** The report shows whether ad clicks are reaching the website, which catches "the ads stopped". Spend and campaign status would need Google's and Meta's ads APIs (a Google developer token, and a Meta system-user token with `ads_read`).
 - **Replying to comments and DMs automatically.** Meta only allows this for apps that pass its App Review. The report tells her when new comments arrive instead.
+
+## Leads, the new name and ElevenLabs (10 November 2026, later)
+
+- **Name:** the app is now **Marketing Hub** everywhere Crystal sees it. The web address, the GitHub repo and the Meta app keep the name `crystal-studio` / "Crystal Studio": changing those would break the Facebook login (its return address is registered with Meta). The Meta display name can be changed by hand in Meta → App settings → Basic.
+- **Leads:** `lib/leads.js` reads comments on her Instagram posts and comments + reactions on her Page posts, and keeps each person (public name, comment, date) for 6 months. Meta does not expose who liked an Instagram post, nor anyone's phone or email, to any app. Comments on *ads* that aren't also ordinary posts need the ad account connected (`ads_read`), which is not done. The privacy page was updated to say this list is kept.
+- **Desktop app:** `~/Applications/Marketing Hub.app` on Crystal's Mac is a small launcher that opens the Hub in its own Chrome window. A background program isn't needed because the automation runs online. A fully native app would add maintenance and nothing she can't already do.
+- **ElevenLabs:** key is pasted in Settings, checked against ElevenLabs and stored encrypted like the Meta connection. Only the connection exists so far. Its free plan has no commercial licence.

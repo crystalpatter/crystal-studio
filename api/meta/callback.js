@@ -70,7 +70,7 @@ export async function GET(request) {
     return page(
       'Connected',
       `<h1>Connected ✓</h1>
-<p>Crystal Studio is now connected to <b>@${esc(ig.username)}</b> on Instagram and the <b>${esc(chosen.name)}</b> Facebook Page.</p>
+<p>Marketing Hub is now connected to <b>@${esc(ig.username)}</b> on Instagram and the <b>${esc(chosen.name)}</b> Facebook Page.</p>
 <p>There's nothing else to do. Scheduled posts and Autopilot carry on from here.</p>
 <p class="small">The connection is stored encrypted and is only used to post and read your own stats. If you ever think it has leaked, change your Facebook password and connect again.</p>`
     );

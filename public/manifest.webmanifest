@@ -1,7 +1,7 @@
 {
-  "name": "Crystal Studio",
-  "short_name": "CC Studio",
-  "description": "Post once to Instagram and Facebook for Crystal Cosmetics.",
+  "name": "Marketing Hub",
+  "short_name": "Marketing Hub",
+  "description": "Posts, scheduling, leads and reports for Crystal Cosmetics.",
   "start_url": "/#create",
   "scope": "/",
   "display": "standalone",

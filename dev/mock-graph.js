@@ -2,7 +2,7 @@
 // check exactly what would have been sent to Instagram and Facebook.
 import http from 'node:http';
 
-export function startMockGraph({ port = 5199, videoPolls = 2, fail = {}, media = null, insights = {} } = {}) {
+export function startMockGraph({ port = 5199, videoPolls = 2, fail = {}, media = null, insights = {}, comments = null, fbPosts = null } = {}) {
   const calls = [];
   const containers = {};
   let n = 0;
@@ -27,6 +27,11 @@ export function startMockGraph({ port = 5199, videoPolls = 2, fail = {}, media =
 
     if (req.method === 'GET' && p === 'me')
       return out(200, { id: 'PAGE1', name: 'Crystal Cosmetics', followers_count: 412, instagram_business_account: { id: 'IG1', username: 'bycrystalcosmetics', followers_count: 763 } });
+    // Who engaged (for the "people to reach out to" list).
+    if (req.method === 'GET' && comments && /^(M|OLD)\d+\/comments$/.test(p)) return out(200, { data: comments[p.split('/')[0]] || [] });
+    if (req.method === 'GET' && comments && p === 'IG1/media' && !(params.fields || '').includes('children') && (params.fields || '').includes('comments_count') && !(params.fields || '').includes('like_count'))
+      return out(200, { data: Object.keys(comments).map((id) => ({ id, permalink: `https://www.instagram.com/p/${id}/`, caption: `Caption of ${id}`, timestamp: new Date().toISOString(), comments_count: comments[id].length })) });
+    if (req.method === 'GET' && fbPosts && p === 'PAGE1/published_posts') return typeof fbPosts === 'function' ? fbPosts(params, out) : out(200, { data: fbPosts });
     // Past posts and their numbers, for the Autopilot "re-share a top post" tests.
     if (req.method === 'GET' && p === 'IG1/media' && media && (params.fields || '').includes('children')) return out(200, { data: media });
     if (req.method === 'GET' && /^OLD\d+\/insights$/.test(p)) {

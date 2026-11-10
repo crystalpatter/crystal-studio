@@ -17,7 +17,7 @@ function page(title, inner, status = 200) {
   return new Response(
     `<!doctype html><html lang="en-AU"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><meta name="referrer" content="no-referrer">
 <title>${esc(title)}</title><link rel="stylesheet" href="/app.css"></head><body class="connect"><main class="card narrow"><h1>${esc(title)}</h1>${inner}
-<p><a class="btn ghost wide" href="/#autopilot">Open Crystal Studio</a></p></main></body></html>`,
+<p><a class="btn ghost wide" href="/#autopilot">Open Marketing Hub</a></p></main></body></html>`,
     { status, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } }
   );
 }

@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Crystal Studio</title>
-  <meta name="description" content="Post once to Instagram and Facebook for Crystal Cosmetics.">
+  <title>Marketing Hub</title>
+  <meta name="description" content="Posts, scheduling, leads and reports for Crystal Cosmetics, across Instagram, Facebook and the website.">
   <meta name="theme-color" content="#2A2118">
   <meta name="robots" content="noindex">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="CC Studio">
+  <meta name="apple-mobile-web-app-title" content="Marketing Hub">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
@@ -22,7 +22,7 @@
 <body>
   <header class="top">
     <img src="/icons/icon.svg" alt="" width="32" height="32">
-    <span class="brand">Crystal <em>Studio</em></span>
+    <span class="brand">Marketing <em>Hub</em></span>
     <span id="acct" class="acct"></span>
   </header>
 
@@ -30,7 +30,7 @@
   <section id="view-login" class="view" hidden>
     <div class="card narrow">
       <h1>Welcome back</h1>
-      <p class="muted">Enter your Crystal Studio password.</p>
+      <p class="muted">Enter your Marketing Hub password.</p>
       <form id="login-form">
         <label for="pw">Password</label>
         <input id="pw" type="password" autocomplete="current-password" required>
@@ -171,6 +171,21 @@
       <ul id="checks" class="checks"></ul>
       <a id="connect-btn" class="btn wide" href="/api/meta/start">Connect Instagram &amp; Facebook</a>
       <p class="muted small">You log in on Facebook's own page. This app never sees your password. When you come back it's connected: there is nothing to copy or paste.</p>
+    </div>
+    <div class="card">
+      <h2>ElevenLabs <span class="pill" id="el-pill">Optional</span></h2>
+      <p class="small">Connect an ElevenLabs account so the Hub can create voiceovers, music and sound for your posts.</p>
+      <div id="el-state"></div>
+      <div id="el-form">
+        <label for="el-key">ElevenLabs API key</label>
+        <input id="el-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk_…">
+        <button id="el-save" class="btn wide" type="button">Connect ElevenLabs</button>
+      </div>
+      <div id="el-actions" class="actions-row" hidden>
+        <button id="el-check" class="btn small ghost" type="button">Check connection</button>
+        <button id="el-remove" class="btn small danger" type="button">Disconnect</button>
+      </div>
+      <p class="muted small">Where to get the key: elevenlabs.io → sign in → <b>Developers</b> → <b>API Keys</b> → <b>Create key</b> → copy it and paste it here. It's checked with ElevenLabs and stored encrypted; it is never shown again. ElevenLabs' free plan doesn't allow business use, so posts for the business need its Starter plan (about US$6 a month).</p>
     </div>
     <div class="card">
       <h2>Ads <span class="pill">Coming later</span></h2>

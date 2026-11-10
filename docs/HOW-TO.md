@@ -1,6 +1,8 @@
-# Crystal Studio: how to post (2-minute guide)
+# Marketing Hub: how to use it (2-minute guide)
 
-Open **CC Studio** from your home screen.
+*(The app used to be called Crystal Studio. Same app, same address; Facebook's own screens still show the old name.)*
+
+Open **Marketing Hub** from your iPhone home screen, or from **Applications → Marketing Hub** on the Mac (drag it to the Dock). Everything runs online, so posting and the morning email carry on when the Mac is off; the phone and the Mac show the same thing.
 
 **First time on your iPhone:** open **crystal-studio-seven.vercel.app** in **Safari** → tap **Share (□↑)** → **Add to Home Screen** → **Add**. Log in once with your app password.
 
@@ -46,9 +48,14 @@ Autopilot keeps posts going out on your posting days (Mon / Wed / Fri at 6pm unl
 
 Every morning you get one email with: anything that needs you (a broken connection, a post waiting for approval, an empty bank), what was posted yesterday and what's going out today, Instagram numbers (yesterday, last 7 days, and the change from the week before), new comments to reply to, website visits and where they came from, how many people tapped **Book**, whether paid ads are sending visitors, and a tick-list of every connection.
 
+- **People to reach out to:** everyone who commented on your Instagram posts, and everyone who commented or reacted on your Facebook Page posts, in the last 24 hours, with a link to their profile so you can reply or message them, plus anyone still waiting for a reply. Two limits set by Meta, not by this app: Instagram never says *who* liked a post (open the post in Instagram to see them), and neither platform gives out phone numbers or emails. For real contact details, use the website enquiry form or a Meta "lead form" ad, where people type them in themselves.
 - **Taps on Book** are people who pressed a booking button on the website and were sent to Timely. Timely doesn't pass back confirmed bookings, so check Timely for the final number.
 - **Ads** shows visitors arriving from ad clicks. Spend and whether a campaign is switched on live in Google Ads and Meta Ads Manager.
 - Change the address, turn the email off, or read today's report in the app: **Autopilot** → **Morning report**.
+
+## ElevenLabs (optional)
+
+Settings → **ElevenLabs**: paste your ElevenLabs API key and tap **Connect ElevenLabs**. Get the key at elevenlabs.io → **Developers** → **API Keys** → **Create key**. The key is checked, stored encrypted and never shown again. This only makes the connection for now; creating voiceovers and video from inside the Hub is the next build. ElevenLabs' free plan does not allow business use: anything used in a post needs its Starter plan (about US$6 a month).
 
 ## Insights
 

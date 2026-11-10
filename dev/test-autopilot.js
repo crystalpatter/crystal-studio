@@ -20,6 +20,7 @@ Object.assign(process.env, {
   RESEND_BASE: 'http://localhost:5196',
   HEALTH_WEBSITE: 'http://localhost:5196/site',
   HEALTH_BOOKING: 'http://localhost:5196/book',
+  ELEVEN_BASE: 'http://localhost:5196/eleven',
 });
 delete process.env.RESEND_API_KEY;
 
@@ -37,7 +38,19 @@ const MEDIA = [
 ];
 const INSIGHTS = { OLD1: { reach: 900, saved: 12, shares: 3 }, OLD2: { reach: 2400, saved: 40, shares: 22 }, OLD3: { reach: 9000, saved: 90, shares: 50 }, OLD4: { reach: 5000 }, OLD5: { reach: 7000 }, OLD6: { reach: 8000 }, OLD7: { reach: 600, saved: 5, shares: 1 } };
 
-const mock = await startMockGraph({ port: 5197, videoPolls: 0, media: MEDIA, insights: INSIGHTS });
+const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
+const COMMENTS = {
+  OLD1: [
+    { id: 'c1', text: 'How much is lip blush? 😍', username: 'sarah.gc', timestamp: ago(3) },
+    { id: 'c2', text: 'Thank you lovely!', username: 'bycrystalcosmetics', timestamp: ago(2) }, // her own comment: not a lead
+    { id: 'c3', text: 'Obsessed with these', username: 'mia_brows', timestamp: ago(72), replies: { data: [{ username: 'bycrystalcosmetics', timestamp: ago(70) }] } },
+  ],
+  OLD2: [{ id: 'c4', text: 'Do you do touch ups?', username: 'jess.k', timestamp: ago(100) }],
+};
+const FB_POSTS = [
+  { id: 'PAGE1_9', permalink_url: 'https://www.facebook.com/PAGE1/posts/9', message: 'Fresh lip blush', created_time: ago(30), comments: { data: [{ id: 'f1', from: { id: 'U1', name: 'Heather D' }, message: 'Booking in!', created_time: ago(5) }, { id: 'f2', message: 'name hidden', created_time: ago(5) }] }, reactions: { data: [{ id: 'U2', name: 'Leonie M', type: 'LOVE' }, { id: 'PAGE1', name: 'Crystal Cosmetics', type: 'LIKE' }] } },
+];
+const mock = await startMockGraph({ port: 5197, videoPolls: 0, media: MEDIA, insights: INSIGHTS, comments: COMMENTS, fbPosts: FB_POSTS });
 
 // Pretend email service + pretend website
 const mails = [];
@@ -56,6 +69,12 @@ const side = http
       res.writeHead(200, { 'content-type': 'application/json' });
       return res.end(JSON.stringify({ id: `mail${mails.length}` }));
     }
+    if (req.url === '/eleven/v1/user/subscription') {
+      const k = req.headers['xi-api-key'];
+      const reply = k === 'sk_good_key_0123456789abcdef' ? [200, { tier: 'starter', character_count: 1200, character_limit: 30000 }] : k === 'sk_limited_key_0123456789abc' ? [401, { detail: { status: 'missing_permissions', message: 'The API key is missing the permission user_read' } }] : [401, { detail: { status: 'invalid_api_key', message: 'Invalid API key' } }];
+      res.writeHead(reply[0], { 'content-type': 'application/json' });
+      return res.end(JSON.stringify(reply[1]));
+    }
     res.writeHead(200, { 'content-type': 'text/html' });
     res.end('<a href="https://bookings.gettimely.com/crystalcosmetics/bb/book">Book</a>');
   })
@@ -72,6 +91,7 @@ const { advance } = await import('../lib/publisher.js');
 const { buildReport, renderEmail, renderText, subject } = await import('../lib/report.js');
 const { sendDaily } = await import('../lib/daily.js');
 const T = await import('../lib/time.js');
+const { collectLeads } = await import('../lib/leads.js');
 const statusApi = await import('../api/status.js');
 const postsApi = await import('../api/posts.js');
 const apApi = await import('../api/autopilot.js');
@@ -289,6 +309,33 @@ await test('the Facebook connection is stored encrypted and preferred over the o
   await token.clearToken();
 });
 
+await test('leads: everyone who commented or reacted is listed with their profile, own replies are noticed', async () => {
+  const l = await collectLeads(Date.now());
+  assert.equal(l.available, true);
+  assert.deepEqual(l.status, { instagram: 'ok', facebook: 'ok', facebookHidden: 1 });
+  const names = l.fresh.map((x) => x.name);
+  assert.deepEqual(names, ['@sarah.gc', 'Heather D'], 'new in the last 24h, newest first; her own comments are not leads');
+  const sarah = l.fresh[0];
+  assert.equal(sarah.url, 'https://www.instagram.com/sarah.gc/');
+  assert.equal(sarah.latest.text, 'How much is lip blush? 😍');
+  assert.equal(sarah.waiting, true);
+  assert.deepEqual(l.waiting.map((x) => x.name), ['@jess.k'], 'older comment with no reply; mia_brows was replied to');
+  assert.equal(l.total, 5, 'sarah, mia, jess, Heather, Leonie');
+  // A reaction that was already there on the first run isn't "new"; one that appears later is.
+  FB_POSTS[0].reactions.data.push({ id: 'U3', name: 'Tash R', type: 'LIKE' });
+  const again = await collectLeads(Date.now());
+  assert.ok(again.fresh.some((x) => x.name === 'Tash R'));
+  assert.ok(!again.fresh.some((x) => x.name === 'Leonie M'));
+  assert.equal(again.total, 6);
+});
+
+await test('leads: a missing Instagram permission is reported plainly, and Facebook still works', async () => {
+  mock.failNext('OLD1/comments', { code: 10, message: '(#10) Application does not have permission for this action' });
+  const l = await collectLeads(Date.now());
+  assert.equal(l.status.instagram, 'permission');
+  assert.equal(l.status.facebook, 'ok');
+});
+
 await test('morning report: connection check, posts, Instagram, website and "needs you"', async () => {
   await store.kvSet('heartbeat', { at: Date.now(), by: 'vercel' });
   const r = await buildReport(Date.now());
@@ -303,7 +350,7 @@ await test('morning report: connection check, posts, Instagram, website and "nee
   assert.equal(r.fb.followers, 412);
   assert.ok(r.needs.some((n) => /content bank is empty/.test(n.text)));
   const html = renderEmail(r);
-  for (const bit of ['Morning report', 'Connection check', 'Instagram @bycrystalcosmetics', 'Website → bookings', 'Taps on “Book”', 'Visitors from Google Ads', 'Open Crystal Studio']) assert.ok(html.includes(bit), `email should mention: ${bit}`);
+  for (const bit of ['Morning report', 'People to reach out to', 'https://www.instagram.com/sarah.gc/', 'Still waiting for a reply', 'Connection check', 'Instagram @bycrystalcosmetics', 'Website → bookings', 'Taps on “Book”', 'Visitors from Google Ads', 'Open Marketing Hub']) assert.ok(html.includes(bit), `email should mention: ${bit}`);
   assert.ok(!html.includes('undefined') && !html.includes('NaN'), 'no stray undefined/NaN in the email');
   assert.match(renderText(r), /CONNECTIONS/);
   assert.match(subject(r), /Crystal Cosmetics/);
@@ -369,6 +416,26 @@ await test('the scheduler endpoint publishes, plans and records a heartbeat in o
   assert.equal(out.ok, true);
   assert.ok('autopilot' in out && 'report' in out);
   assert.equal((await store.kvGet('heartbeat')).by, 'vercel');
+});
+
+await test('ElevenLabs: a good key is checked and stored encrypted; a bad key is refused; the key is never sent back', async () => {
+  const call = (b, c = cookie) => statusApi.PATCH(req('/api/status', { method: 'PATCH', cookie: c, body: b }));
+  assert.equal((await call({ action: 'eleven-save', key: 'sk_good_key_0123456789abcdef' }, null)).status, 401, 'needs the login');
+  const bad = await call({ action: 'eleven-save', key: 'sk_wrong_key_0123456789abcdef' });
+  assert.equal(bad.status, 400);
+  assert.match((await bad.json()).error, /didn't accept/);
+  const good = await call({ action: 'eleven-save', key: ' sk_good_key_0123456789abcdef ' });
+  const { eleven } = await good.json();
+  assert.deepEqual({ c: eleven.connected, p: eleven.plan, u: eleven.used, l: eleven.limit }, { c: true, p: 'starter', u: 1200, l: 30000 });
+  assert.ok(!JSON.stringify(await store.kvGet('secret:eleven')).includes('sk_good'), 'not stored in plain text');
+  const st = await (await statusApi.GET(req('/api/status', { cookie }))).json();
+  assert.equal(st.eleven.connected, true);
+  assert.ok(!JSON.stringify(st).includes('sk_good'), 'status never returns the key');
+  assert.equal((await (await call({ action: 'eleven-check' })).json()).eleven.plan, 'starter');
+  const lim = await (await call({ action: 'eleven-save', key: 'sk_limited_key_0123456789abc' })).json();
+  assert.equal(lim.eleven.limited, true);
+  assert.equal((await (await call({ action: 'eleven-remove' })).json()).eleven.connected, false);
+  assert.equal(await store.kvGet('secret:eleven'), null);
 });
 
 await test('Autopilot screen API: change settings, and needs the login', async () => {

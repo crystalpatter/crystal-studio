@@ -5,6 +5,8 @@ import { isLoggedIn, passwordMatches, sessionCookie, clearCookie } from '../lib/
 import { json, fail, body } from '../lib/http.js';
 import { storeConfigured } from '../lib/store.js';
 import { account, pageToken } from '../lib/graph.js';
+import { tokenDebug } from '../lib/health.js';
+import { elevenStatus, connectEleven, recheckEleven, disconnectEleven } from '../lib/eleven.js';
 
 export async function GET(request) {
   const loggedIn = isLoggedIn(request);
@@ -23,9 +25,11 @@ export async function GET(request) {
     metaError: null,
   };
   if (status.metaApp && !status.tokenSet) status.metaAppCheck = await checkMetaApp();
+  status.eleven = await elevenStatus();
   if (status.tokenSet) {
     try {
       status.meta = await account();
+      status.metaScopes = (await tokenDebug())?.scopes || null; // which permissions Facebook granted (names only)
     } catch (err) {
       status.metaError = err.userMessage || err.message;
       status.metaTokenCheck = await tokenShape(err);
@@ -84,4 +88,22 @@ export async function POST(request) {
 
 export async function DELETE() {
   return json({ ok: true }, 200, { 'set-cookie': clearCookie() });
+}
+
+// Connect / check / remove ElevenLabs. The key only ever travels from her
+// browser to here over HTTPS, is checked with ElevenLabs, and is stored encrypted.
+export async function PATCH(request) {
+  if (!isLoggedIn(request)) return fail('Please log in again.', 401);
+  const b = await body(request);
+  try {
+    if (b.action === 'eleven-save') return json({ eleven: await connectEleven(b.key) });
+    if (b.action === 'eleven-check') return json({ eleven: await recheckEleven() });
+    if (b.action === 'eleven-remove') {
+      await disconnectEleven();
+      return json({ eleven: { connected: false } });
+    }
+    return fail('Unknown action.');
+  } catch (err) {
+    return fail(err.userMessage || 'Something went wrong.', err.status || 500);
+  }
 }

@@ -20,7 +20,8 @@ Open **CC Studio** from your home screen.
 3. **Where and when.**
    - Instagram is always on. **Also post to Facebook** is on by default.
    - **Post now**, or **Schedule** and pick a time (Gold Coast time). The Mon / Wed / Fri 6pm buttons follow your 30-day plan.
-   - Scheduled posts go out within about 10 minutes of the time you pick, never early. Your phone and Mac don't need to be on.
+   - Or choose **Add to bank**: no date needed. Autopilot gives it your next free posting day (see below). This is the quickest way to stay consistent: add a few posts when you have time and let them drip out.
+   - Scheduled posts go out within the hour of the time you pick, never early (usually within minutes if the app is open). Your phone and Mac don't need to be on.
 4. **Review post** → check the preview → **Post now** / **Schedule**.
    - Videos and carousels take a minute or two while Instagram processes them. You can close the app; it finishes on its own.
    - When it says **Posted ✓**, tap **View on Instagram** to see it.
@@ -32,6 +33,23 @@ Open **CC Studio** from your home screen.
 - If something failed, the reason is shown in plain English. Tap **Retry**.
 - Removing a post from the calendar doesn't delete it from Instagram. Do that in the Instagram app.
 
+## Autopilot
+
+Autopilot keeps posts going out on your posting days (Mon / Wed / Fri at 6pm unless you change them) without you picking times.
+
+- **Content bank:** posts you've added with **Add to bank**. On each posting day the oldest one goes out. If you've already scheduled or posted something yourself that day, Autopilot leaves the day alone.
+- **Empty bank:** Autopilot re-shares one of your own past posts that did well. It only uses posts at least 45 days old, never repeats one within 4 months, and skips anything that mentions prices, dates, offers, the old address, or breaks your brief. The Autopilot tab always shows exactly what's lined up next, with **Pick another** and **Skip that day**.
+- **Ask me before a re-share goes out:** tick this if you'd rather approve each re-share. You'll get an **Approve** button in your morning email and in the app; if you don't approve, nothing goes out.
+- **Switch it off** any time with the toggle at the top. Posts you schedule yourself still go out.
+
+## Morning report (8am email)
+
+Every morning you get one email with: anything that needs you (a broken connection, a post waiting for approval, an empty bank), what was posted yesterday and what's going out today, Instagram numbers (yesterday, last 7 days, and the change from the week before), new comments to reply to, website visits and where they came from, how many people tapped **Book**, whether paid ads are sending visitors, and a tick-list of every connection.
+
+- **Taps on Book** are people who pressed a booking button on the website and were sent to Timely. Timely doesn't pass back confirmed bookings, so check Timely for the final number.
+- **Ads** shows visitors arriving from ad clicks. Spend and whether a campaign is switched on live in Google Ads and Meta Ads Manager.
+- Change the address, turn the email off, or read today's report in the app: **Autopilot** → **Morning report**.
+
 ## Insights
 
 The last 28 days: followers, accounts reached, views, profile visits, link taps and engagement, plus reach, saves and shares for your recent posts. Instagram can take up to 48 hours to finish counting. Tap **Refresh** for the latest.
@@ -40,6 +58,6 @@ The last 28 days: followers, accounts reached, views, profile visits, link taps 
 
 ## If something goes wrong
 
-- **"Connection expired"** → Settings → **Reconnect Instagram & Facebook**, then paste the new token into Vercel and redeploy (setup guide, Part 4).
+- **"Connection expired"** → Settings → **Reconnect Instagram & Facebook** and log in on Facebook. That's all (no tokens to copy). Your morning email flags this the day it happens.
 - **The app is down or confusing** → use **Meta Business Suite** to post. It does the same Instagram + Facebook posting and scheduling, for free.
 - **Ads:** not in the app yet. Ads always cost money paid to Meta. Use Meta Business Suite → **Ads** to see or pause anything running.

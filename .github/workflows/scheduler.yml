@@ -1,6 +1,7 @@
-# Publishes scheduled posts. Every 10 minutes GitHub pings the app's scheduler,
-# which posts anything whose time has come. (GitHub can run a few minutes late
-# at busy times, so a 6:00pm post may go out between about 6:00 and 6:20pm.)
+# Backup scheduler. Vercel's own hourly jobs (vercel.json) are the main trigger;
+# GitHub also pings the app whenever it gets round to it (in practice a few
+# times a day, not every 10 minutes), which publishes anything due, lets
+# Autopilot fill today's slot and sends the morning report if it hasn't gone.
 #
 # Set up once (setup guide, Part 4): in this GitHub repo → Settings → Secrets and
 # variables → Actions → Variables, add APP_URL = https://<your-app>.vercel.app

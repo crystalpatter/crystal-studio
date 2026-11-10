@@ -16,7 +16,7 @@ export async function GET(request) {
     media: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
     devMedia: !process.env.VERCEL && !process.env.BLOB_READ_WRITE_TOKEN,
     metaApp: Boolean(process.env.META_APP_ID && process.env.META_APP_SECRET),
-    tokenSet: Boolean(pageToken()),
+    tokenSet: Boolean(await pageToken()),
     meta: null,
     metaError: null,
   };
@@ -26,7 +26,8 @@ export async function GET(request) {
       status.meta = await account();
     } catch (err) {
       status.metaError = err.userMessage || err.message;
-      status.metaTokenCheck = tokenShape(err);
+      status.metaTokenCheck = await tokenShape(err);
+      status.metaWhy = { code: err.code ?? null, subcode: err.subcode ?? null, meta: err.raw ?? null };
     }
   }
   return json(status);
@@ -40,8 +41,8 @@ function keyShape(k) {
 }
 
 // Describes what's wrong with a saved Page token without revealing it.
-function tokenShape(err) {
-  const t = pageToken();
+async function tokenShape(err) {
+  const t = await pageToken();
   let shape = 'ok';
   if (t === (process.env.META_APP_SECRET || '').trim()) shape = 'is-app-secret';
   else if (/\s/.test(t)) shape = 'has-spaces';

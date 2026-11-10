@@ -86,7 +86,9 @@
       <div class="seg" role="radiogroup" aria-label="When">
         <label><input type="radio" name="when" value="now" checked><span>Post now</span></label>
         <label><input type="radio" name="when" value="later"><span>Schedule</span></label>
+        <label><input type="radio" name="when" value="bank"><span>Add to bank</span></label>
       </div>
+      <p id="when-bank" class="muted small" hidden>Saved with no date. Autopilot gives it your next free posting day, oldest first. <a href="#autopilot">See your bank</a></p>
       <div id="when-later" hidden>
         <div class="chips" id="quick-times"></div>
         <label for="when-at">Date and time (Gold Coast time)</label>
@@ -113,6 +115,42 @@
     </div>
   </section>
 
+  <!-- Autopilot -->
+  <section id="view-autopilot" class="view" hidden>
+    <div class="card">
+      <div class="row-between"><h2>Autopilot</h2><label class="toggle tight"><input id="ap-on" type="checkbox"> <span id="ap-on-label">On</span></label></div>
+      <p class="muted small">Keeps posts going out on your posting days. It uses your content bank first, and re-shares a past top post when the bank is empty.</p>
+      <div id="ap-next"></div>
+    </div>
+    <div class="card">
+      <div class="row-between"><h2>Content bank</h2><a class="btn small" href="#create">Add a post</a></div>
+      <p class="muted small" id="ap-bank-note"></p>
+      <div id="ap-bank" class="post-list"></div>
+    </div>
+    <div class="card">
+      <h2>Posting days</h2>
+      <div class="chips" id="ap-days"></div>
+      <label for="ap-time">Time (Gold Coast)</label>
+      <select id="ap-time"></select>
+      <label class="toggle"><input id="ap-fallback" type="checkbox"> <span>When the bank is empty, re-share a past top post</span></label>
+      <label class="toggle"><input id="ap-ask" type="checkbox"> <span>Ask me before a re-share goes out</span></label>
+      <label class="toggle"><input id="ap-fb" type="checkbox"> <span>Re-shares also go to Facebook</span></label>
+      <p class="muted small">Posts you add yourself never need a second approval. A re-share is only ever one of your own past posts, at least 45 days old, not repeated within 4 months, and never one that mentions prices, dates or offers.</p>
+    </div>
+    <div class="card">
+      <h2>Morning report</h2>
+      <label class="toggle"><input id="ap-report" type="checkbox"> <span>Email me a report every morning at 8am</span></label>
+      <label for="ap-email">Send it to</label>
+      <input id="ap-email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com">
+      <p id="ap-mail-note" class="muted small"></p>
+      <div class="actions-row">
+        <button id="ap-save-email" class="btn small" type="button">Save address</button>
+        <button id="ap-test" class="btn small ghost" type="button">Send me one now</button>
+        <a class="btn small ghost" href="/api/report" target="_blank" rel="noopener">View today's report</a>
+      </div>
+    </div>
+  </section>
+
   <!-- Insights -->
   <section id="view-insights" class="view" hidden>
     <div class="card">
@@ -132,7 +170,7 @@
       <h2>Connections</h2>
       <ul id="checks" class="checks"></ul>
       <a id="connect-btn" class="btn wide" href="/api/meta/start">Connect Instagram &amp; Facebook</a>
-      <p class="muted small">You log in on Facebook's own page. This app never sees your password.</p>
+      <p class="muted small">You log in on Facebook's own page. This app never sees your password. When you come back it's connected: there is nothing to copy or paste.</p>
     </div>
     <div class="card">
       <h2>Ads <span class="pill">Coming later</span></h2>
@@ -164,6 +202,7 @@
   <nav class="tabs" id="tabs" hidden>
     <a href="#create" data-tab="create"><span aria-hidden="true">✚</span>Create</a>
     <a href="#calendar" data-tab="calendar"><span aria-hidden="true">▦</span>Calendar</a>
+    <a href="#autopilot" data-tab="autopilot"><span aria-hidden="true">↻</span>Autopilot</a>
     <a href="#insights" data-tab="insights"><span aria-hidden="true">◔</span>Insights</a>
     <a href="#settings" data-tab="settings"><span aria-hidden="true">⚙︎</span>Settings</a>
   </nav>

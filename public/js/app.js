@@ -76,12 +76,13 @@ function fromLocalInput(v) {
 }
 
 // ---------- routing ----------
-const VIEWS = ['login', 'create', 'calendar', 'insights', 'settings'];
+const VIEWS = ['login', 'create', 'calendar', 'autopilot', 'insights', 'settings'];
 function show(name) {
   for (const v of VIEWS) $(`#view-${v}`).hidden = v !== name;
   $('#tabs').hidden = name === 'login';
   $$('#tabs a').forEach((a) => (a.dataset.tab === name ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   if (name === 'calendar') loadCalendar();
+  if (name === 'autopilot') loadAutopilot();
   if (name === 'insights') loadInsights();
   if (name === 'settings') renderSettings();
   window.scrollTo(0, 0);
@@ -280,6 +281,7 @@ $$('input[name=when]').forEach((r) =>
   r.addEventListener('change', () => {
     const later = $('input[name=when]:checked').value === 'later';
     $('#when-later').hidden = !later;
+    $('#when-bank').hidden = $('input[name=when]:checked').value !== 'bank';
     $('#review-btn').textContent = 'Review post';
     if (later) renderQuickTimes();
   })
@@ -290,6 +292,9 @@ function scheduledAt() {
   if ($('input[name=when]:checked').value !== 'later') return null;
   return fromLocalInput($('#when-at').value);
 }
+function toBank() {
+  return $('input[name=when]:checked').value === 'bank';
+}
 
 $('#review-btn').addEventListener('click', () => {
   if (!state.items.length) return toast('Add a photo or video first.');
@@ -297,18 +302,19 @@ $('#review-btn').addEventListener('click', () => {
   if (!caption) return toast('Add a caption first (or tap ✨ for ideas).');
   if (caption.length > 2200) return toast('Caption is too long for Instagram (2,200 max).');
   const when = scheduledAt();
+  const bank = toBank();
   if ($('input[name=when]:checked').value === 'later' && (!when || when < Date.now() + 120000)) return toast('Pick a time in the future.');
   const t = postType();
   const first = state.items[0];
-  $('#sheet-title').textContent = when ? 'Schedule this post?' : 'Post this now?';
+  $('#sheet-title').textContent = bank ? 'Add this to your content bank?' : when ? 'Schedule this post?' : 'Post this now?';
   $('#sheet-preview').hidden = false;
   $('#sheet-progress').hidden = true;
   $('#sheet-preview').innerHTML = `
     ${t === 'carousel' ? `<div class="strip">${state.items.map((i) => `<img src="${i.thumbUrl}" alt="">`).join('')}</div>` : t === 'reel' ? `<video src="${first.previewUrl}" controls playsinline muted></video>` : `<img src="${first.thumbUrl}" alt="">`}
     <div class="cap">${esc(caption)}</div>
-    <p class="where">${t === 'reel' ? 'Reel' : t === 'carousel' ? 'Carousel' : 'Photo'} → Instagram${$('#to-fb').checked ? ' + Facebook' : ''} · ${when ? fmt(when) + ' (Gold Coast time)' : 'right now'}</p>
+    <p class="where">${t === 'reel' ? 'Reel' : t === 'carousel' ? 'Carousel' : 'Photo'} → Instagram${$('#to-fb').checked ? ' + Facebook' : ''} · ${bank ? 'Autopilot picks the day' : when ? fmt(when) + ' (Gold Coast time)' : 'right now'}</p>
     ${check(caption).length ? '<p class="warnings"><li>Your caption has a brief warning (see under the caption). Post anyway only if you\'re sure.</li></p>' : ''}`;
-  $('#sheet-confirm').textContent = when ? 'Schedule' : 'Post now';
+  $('#sheet-confirm').textContent = bank ? 'Add to bank' : when ? 'Schedule' : 'Post now';
   $('#sheet-confirm').disabled = false;
   $('#sheet-cancel').textContent = 'Back';
   $('#sheet').showModal();
@@ -346,12 +352,13 @@ $('#sheet-confirm').addEventListener('click', async () => {
   $('#sheet-preview').hidden = true;
   $('#sheet-progress').hidden = false;
   const when = scheduledAt();
+  const bank = toBank();
   const toFb = $('#to-fb').checked;
   const s = [
     { label: 'Preparing photos', state: 'doing' },
     { label: 'Uploading', bar: 0 },
-    { label: when ? 'Scheduling' : 'Posting to Instagram' },
-    ...(toFb && !when ? [{ label: 'Posting to Facebook' }] : []),
+    { label: bank ? 'Adding to your bank' : when ? 'Scheduling' : 'Posting to Instagram' },
+    ...(toFb && !when && !bank ? [{ label: 'Posting to Facebook' }] : []),
   ];
   steps(s);
   try {
@@ -386,12 +393,16 @@ $('#sheet-confirm').addEventListener('click', async () => {
     s[1].state = 'done';
     s[1].bar = 100;
     s[2].state = 'doing';
-    if (t !== 'image' && !when) s[2].note = 'Instagram can take a minute or two to process videos and carousels.';
+    if (t !== 'image' && !when && !bank) s[2].note = 'Instagram can take a minute or two to process videos and carousels.';
     steps(s);
 
-    let { post } = await api('/api/posts', { method: 'POST', body: { media, caption: fullCaption(), toFacebook: toFb, scheduledAt: when } });
+    let { post } = await api('/api/posts', { method: 'POST', body: { media, caption: fullCaption(), toFacebook: toFb, scheduledAt: when, bank } });
 
-    if (when) {
+    if (bank) {
+      s[2].state = 'done';
+      s[2].label = 'In your content bank. Autopilot will post it on your next free posting day.';
+      steps(s);
+    } else if (when) {
       s[2].state = 'done';
       s[2].label = `Scheduled for ${fmt(post.scheduledAt)}`;
       steps(s);
@@ -428,8 +439,8 @@ function renderPublishSteps(s, post) {
 }
 
 function finishSheet(post) {
-  const ok = ['published', 'scheduled'].includes(post.status);
-  $('#sheet-title').textContent = post.status === 'published' ? 'Posted ✓' : post.status === 'scheduled' ? 'Scheduled ✓' : post.status === 'partial' ? 'Posted to Instagram (Facebook failed)' : post.status === 'publishing' ? 'Still processing…' : "Didn't post";
+  const ok = ['published', 'scheduled', 'banked'].includes(post.status);
+  $('#sheet-title').textContent = post.status === 'banked' ? 'Added to your bank ✓' : post.status === 'published' ? 'Posted ✓' : post.status === 'scheduled' ? 'Scheduled ✓' : post.status === 'partial' ? 'Posted to Instagram (Facebook failed)' : post.status === 'publishing' ? 'Still processing…' : "Didn't post";
   const links = [];
   if (post.ig.permalink) links.push(`<a class="btn small" href="${esc(post.ig.permalink)}" target="_blank" rel="noopener">View on Instagram</a>`);
   if (post.status === 'publishing') links.push('<p class="small">You can close this. It will finish in the background and show in the Calendar.</p>');
@@ -524,7 +535,7 @@ function postCard(p) {
   return `<article class="post" data-id="${p.id}">
     ${thumb ? `<img src="${esc(thumb)}" alt="" loading="lazy">` : '<div class="ph"></div>'}
     <div>
-      <div class="meta"><span class="pill ${p.status}">${STATUS_LABEL[p.status] || p.status}</span> ${fmt(postTime(p))} · ${p.type === 'reel' ? 'Reel' : p.type === 'carousel' ? 'Carousel' : 'Photo'}${p.toFacebook ? ' · IG + FB' : ' · IG'}</div>
+      <div class="meta"><span class="pill ${p.status}">${p.hold && p.status === 'scheduled' ? 'Waiting for your OK' : STATUS_LABEL[p.status] || p.status}</span>${p.auto ? ' <span class="pill">Re-share</span>' : p.fromBank ? ' <span class="pill">From bank</span>' : ''} ${fmt(postTime(p))} · ${p.type === 'reel' ? 'Reel' : p.type === 'carousel' ? 'Carousel' : 'Photo'}${p.toFacebook ? ' · IG + FB' : ' · IG'}</div>
       <p class="cap">${esc(p.caption)}</p>
       ${err && p.status !== 'published' ? `<p class="err">${esc(err)}</p>` : ''}
       <div class="actions">
@@ -592,6 +603,135 @@ $('#post-list').addEventListener('click', async (e) => {
   }
 });
 
+// ---------- autopilot ----------
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const timeLabel = (h, m) => `${((h + 11) % 12) + 1}${m ? ':' + String(m).padStart(2, '0') : ''}${h < 12 ? 'am' : 'pm'}`;
+
+async function loadAutopilot() {
+  $('#ap-next').innerHTML = '<p class="muted">Loading…</p>';
+  try {
+    renderAutopilot(await api('/api/autopilot'));
+  } catch (err) {
+    $('#ap-next').innerHTML = `<p class="error">${esc(err.message)}</p>`;
+  }
+}
+
+function miniPost(p, actions = '') {
+  return `<article class="post" data-id="${esc(p.id)}">${p.thumb ? `<img src="${esc(p.thumb)}" alt="" loading="lazy">` : '<div class="ph"></div>'}
+    <div><div class="meta">${p.scheduledAt ? fmt(p.scheduledAt) + ' · ' : ''}${p.type === 'reel' ? 'Reel' : p.type === 'carousel' ? 'Carousel' : 'Photo'}${p.auto ? ' · re-share' : ''}</div>
+    <p class="cap">${esc(p.caption)}</p>${(p.warnings || []).length ? `<p class="err">⚠ ${esc(p.warnings[0].why)}</p>` : ''}<div class="actions">${actions}</div></div></article>`;
+}
+
+function renderAutopilot(d) {
+  state.ap = d;
+  const c = d.config;
+  $('#ap-on').checked = c.autopilot;
+  $('#ap-on-label').textContent = c.autopilot ? 'On' : 'Off';
+  const n = d.next;
+  const when = n.slot ? `<b>${fmt(n.slot)}</b>` : '';
+  const f = n.fill;
+  let html = '';
+  if (!n.slot) html = '<p>No posting days are selected below, so Autopilot has nothing to do.</p>';
+  else if (f?.kind === 'booked') {
+    const p = f.post;
+    const acts = p.status !== 'scheduled' ? '' : `${p.hold ? '<button class="btn small" data-ap="approve">Approve</button>' : ''}${p.auto ? '<button class="btn small ghost" data-ap="swap">Pick another</button>' : ''}${p.auto || p.fromBank ? '<button class="btn small ghost" data-ap="skip">Skip that day</button>' : ''}`;
+    html = `<p>Next posting day, ${when}: ${p.status === 'scheduled' ? (p.hold ? 'this re-share is <b>waiting for your OK</b>.' : 'this is lined up.') : 'already posted.'}</p>${miniPost(p, acts)}`;
+  } else if (f?.kind === 'bank') html = `<p>Next posting day, ${when}: the next post from your bank will go out.</p>${miniPost(f.post)}`;
+  else if (f?.kind === 'repost') {
+    const k = f.candidate;
+    const st = [typeof k.stats.reach === 'number' ? `${k.stats.reach.toLocaleString('en-AU')} reached` : '', typeof k.stats.saved === 'number' ? `${k.stats.saved} saves` : '', typeof k.stats.likes === 'number' ? `${k.stats.likes} likes` : ''].filter(Boolean).join(' · ');
+    html = `<p>Next posting day, ${when}: your bank is empty, so ${c.approval === 'ask' ? 'Autopilot will <b>ask you</b> to approve' : 'Autopilot will re-share'} this past top post${st ? ` (${st})` : ''}. Add a post to your bank to use that instead.</p>
+      <article class="post">${k.thumb ? `<img src="${esc(k.thumb)}" alt="" loading="lazy">` : '<div class="ph"></div>'}<div><div class="meta">First posted ${fmt(k.timestamp, { day: 'numeric', month: 'short', year: 'numeric' })}</div><p class="cap">${esc(k.caption)}</p><div class="actions"><a class="btn small ghost" href="${esc(k.permalink)}" target="_blank" rel="noopener">View original</a></div></div></article>`;
+  } else if (f?.kind === 'skipped') html = `<p>Next posting day, ${when}: you chose to skip it.</p>`;
+  else if (f?.kind === 'off') html = `<p>Autopilot is off. Next posting day would be ${when}.</p>`;
+  else if (f?.kind === 'empty') html = `<p>Next posting day, ${when}: your bank is empty and re-sharing is off, so <b>nothing will go out</b>.</p>`;
+  else if (f?.kind === 'nothing') html = `<p>Next posting day, ${when}: your bank is empty and no past post is suitable to re-share. <a href="#create">Add a post</a>.</p>`;
+  else if (f?.kind === 'error') html = `<p class="error">Couldn't check what's next: ${esc(f.error)}</p>`;
+  $('#ap-next').innerHTML = html;
+
+  const weeks = c.days.length ? d.bank.length / c.days.length : 0;
+  $('#ap-bank-note').textContent = d.bank.length ? `${d.bank.length} waiting, oldest goes first. That's about ${weeks < 1 ? 'under a week' : Math.round(weeks) + (Math.round(weeks) === 1 ? ' week' : ' weeks')} of posts.` : 'Empty. In Create, choose “Add to bank” instead of a date and it lands here.';
+  $('#ap-bank').innerHTML = d.bank.map((p) => miniPost(p, '<button class="btn small danger" data-ap="unbank">Remove</button>')).join('');
+
+  $('#ap-days').innerHTML = [1, 2, 3, 4, 5, 6, 0].map((n) => `<button type="button" class="chip" data-dow="${n}" aria-pressed="${c.days.includes(n)}">${DAY_NAMES[n]}</button>`).join('');
+  const times = [];
+  for (let h = 6; h <= 21; h++) for (const m of [0, 30]) times.push(`<option value="${h}:${m}" ${h === c.hour && m === c.minute ? 'selected' : ''}>${timeLabel(h, m)}</option>`);
+  $('#ap-time').innerHTML = times.join('');
+  $('#ap-fallback').checked = c.fallback;
+  $('#ap-ask').checked = c.approval === 'ask';
+  $('#ap-ask').disabled = !c.fallback;
+  $('#ap-fb').checked = c.toFacebook;
+  $('#ap-report').checked = c.reportOn;
+  if (document.activeElement !== $('#ap-email')) $('#ap-email').value = d.mail.to || '';
+  const last = d.lastReport ? `Last report: ${fmt(d.lastReport.at)}.` : '';
+  $('#ap-mail-note').innerHTML = !d.mail.configured
+    ? '⚠ Emails can’t be sent yet: the email key (RESEND_API_KEY) hasn’t been added in Vercel. The report is still built every morning; tap <b>View today’s report</b> to read it here.'
+    : d.mail.lastError
+      ? `⚠ ${esc(d.mail.lastError)}`
+      : !d.mail.to
+        ? 'Add the address the report should go to.'
+        : `${esc(last)} Arrives about 8am Gold Coast time, every day.`;
+}
+
+async function apSave(patch, msg = 'Saved.') {
+  try {
+    renderAutopilot(await api('/api/autopilot', { method: 'PATCH', body: patch }));
+    toast(msg);
+  } catch (err) {
+    toast(err.message, 6000);
+    loadAutopilot();
+  }
+}
+$('#ap-on').addEventListener('change', (e) => apSave({ autopilot: e.target.checked }, e.target.checked ? 'Autopilot is on.' : 'Autopilot is off. Nothing will post unless you schedule it.'));
+$('#ap-days').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-dow]');
+  if (!b) return;
+  const n = Number(b.dataset.dow);
+  const days = new Set(state.ap.config.days);
+  days.has(n) ? days.delete(n) : days.add(n);
+  apSave({ days: [...days] });
+});
+$('#ap-time').addEventListener('change', (e) => {
+  const [hour, minute] = e.target.value.split(':').map(Number);
+  apSave({ hour, minute });
+});
+$('#ap-fallback').addEventListener('change', (e) => apSave({ fallback: e.target.checked }));
+$('#ap-ask').addEventListener('change', (e) => apSave({ approval: e.target.checked ? 'ask' : 'auto' }));
+$('#ap-fb').addEventListener('change', (e) => apSave({ toFacebook: e.target.checked }));
+$('#ap-report').addEventListener('change', (e) => apSave({ reportOn: e.target.checked }));
+$('#ap-save-email').addEventListener('click', () => apSave({ emailTo: $('#ap-email').value }, 'Address saved.'));
+$('#ap-test').addEventListener('click', async (e) => {
+  e.target.disabled = true;
+  toast('Building your report…', 15000);
+  try {
+    const r = await api('/api/report', { method: 'POST' });
+    toast(r.did === 'sent' ? `Sent to ${r.to}. Check your inbox (and Junk the first time).` : r.did === 'saved-not-sent' ? (r.why === 'no-recipient' ? 'Add and save an email address first.' : 'Email isn’t set up yet (RESEND_API_KEY is missing in Vercel).') : r.error || 'That didn’t send.', 8000);
+  } catch (err) {
+    toast(err.message, 8000);
+  } finally {
+    e.target.disabled = false;
+    loadAutopilot();
+  }
+});
+async function apAction(e) {
+  const act = e.target.dataset.ap;
+  if (!act) return;
+  const id = e.target.closest('[data-id]').dataset.id;
+  const ask = { skip: 'Skip that posting day? Nothing will go out.', swap: 'Drop this one and pick the next best?', unbank: 'Remove this post from your bank? This deletes it from the app.' }[act];
+  if (ask && !confirm(ask)) return;
+  e.target.disabled = true;
+  try {
+    const d = await api('/api/autopilot', { method: 'POST', body: { action: act, id } });
+    renderAutopilot(d);
+    toast({ approve: 'Approved. It will go out on time.', skip: 'Skipped.', swap: d.result.next ? 'Swapped.' : d.result.note, unbank: 'Removed.' }[act], 5000);
+  } catch (err) {
+    toast(err.message, 6000);
+    loadAutopilot();
+  }
+}
+$('#ap-next').addEventListener('click', apAction);
+$('#ap-bank').addEventListener('click', apAction);
+
 // ---------- insights ----------
 async function loadInsights(fresh = false) {
   if (!state.status?.meta) {
@@ -636,7 +776,7 @@ function renderSettings() {
     item(s.media || s.devMedia, 'Photo & video storage', 'In Vercel: Storage → Blob → Public (setup guide, Part 3).'),
     item(s.database, 'Post calendar database', 'In Vercel: Storage → Upstash Redis (setup guide, Part 3).'),
     item(s.metaApp && s.metaAppCheck?.ok !== false, 'Meta app', !s.metaApp ? 'Add META_APP_ID and META_APP_SECRET in Vercel (setup guide, Part 3).' : metaAppHint(s.metaAppCheck)),
-    item(Boolean(s.meta?.igId), s.meta?.igId ? `Instagram <b>@${esc(s.meta.igUsername)}</b>` : 'Instagram', s.metaError || (s.tokenSet ? 'The Page has no Instagram Business account linked.' : 'Tap Connect below, then save META_PAGE_TOKEN in Vercel.')),
+    item(Boolean(s.meta?.igId), s.meta?.igId ? `Instagram <b>@${esc(s.meta.igUsername)}</b>` : 'Instagram', s.metaError || (s.tokenSet ? 'The Page has no Instagram Business account linked.' : 'Tap Connect below and log in on Facebook.')),
     item(Boolean(s.meta?.pageId), s.meta?.pageName ? `Facebook Page <b>${esc(s.meta.pageName)}</b>` : 'Facebook Page'),
   ].join('');
   $('#connect-btn').textContent = s.meta ? 'Reconnect Instagram & Facebook' : 'Connect Instagram & Facebook';

@@ -1,7 +1,7 @@
 // List posts for the calendar (GET) and create a new post (POST).
 import { randomUUID } from 'node:crypto';
 import { authed, json, fail, body, query } from '../lib/http.js';
-import { listPosts, savePost, enqueue } from '../lib/store.js';
+import { listPosts, savePost, enqueue, bankAdd } from '../lib/store.js';
 import { advance, newPostShape } from '../lib/publisher.js';
 import { check } from '../public/js/guardrails.js';
 
@@ -11,7 +11,7 @@ export const GET = authed(async (request) => {
   const q = query(request);
   const from = Number(q.get('from')) || Date.now() - 60 * DAY;
   const to = Number(q.get('to')) || Date.now() + 120 * DAY;
-  const posts = await listPosts(from, to);
+  const posts = (await listPosts(from, to)).filter((p) => p.status !== 'banked'); // banked posts live on the Autopilot tab
   return json({ posts });
 });
 
@@ -36,7 +36,8 @@ export const POST = authed(async (request) => {
   const caption = String(b.caption || '').trim();
   if (caption.length > 2200) return fail('Instagram captions can be at most 2,200 characters.');
   if ((caption.match(/#[\p{L}\p{N}_]+/gu) || []).length > 30) return fail('Instagram allows at most 30 hashtags.');
-  let scheduledAt = b.scheduledAt ? Number(b.scheduledAt) : null;
+  const toBank = b.bank === true; // no date: Autopilot gives it the next free posting slot
+  let scheduledAt = b.scheduledAt && !toBank ? Number(b.scheduledAt) : null;
   if (scheduledAt && scheduledAt < Date.now() + 60000) scheduledAt = null; // in the past → post now
   if (scheduledAt && scheduledAt > Date.now() + 75 * DAY) return fail('Please schedule within the next 75 days.');
 
@@ -48,6 +49,12 @@ export const POST = authed(async (request) => {
     scheduledAt,
   });
   post.warnings = check(caption);
+  if (toBank) {
+    post.status = 'banked';
+    await savePost(post);
+    await bankAdd(post.id, post.createdAt);
+    return json({ post });
+  }
   await savePost(post);
   await enqueue(post.id, scheduledAt || Date.now());
   if (!scheduledAt) {

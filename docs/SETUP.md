@@ -82,13 +82,10 @@ This is the "key" that lets Crystal Studio post to your accounts. It's free, it'
 
 1. Open **https://crystal-studio-seven.vercel.app** → **Settings** → **Connect Instagram & Facebook**.
 2. On Facebook's screen, continue as yourself. When it asks which Pages and Instagram accounts: choose **Crystal Cosmetics** and **@bycrystalcosmetics**, and allow everything it asks.
-3. You'll come back to a page that says **"Almost done: save your token in Vercel"**. Follow it:
-   - **Copy token** (the box for the Page showing @bycrystalcosmetics).
-   - Vercel → **Settings** → **Environment Variables** → add `META_PAGE_TOKEN` → paste → **Save**.
-   - **Deployments** → **⋯** → **Redeploy**.
+3. You'll come back to a page that says **Connected ✓**. That's it: there is nothing to copy or paste.
 4. Open the app → **Settings** should show ✓ **Instagram @bycrystalcosmetics** and ✓ **Facebook Page Crystal Cosmetics**.
 
-The token doesn't expire on its own. If you ever change your Facebook password, or Settings says the connection expired, just do Part 4 again.
+The connection doesn't expire on its own, but Facebook can end it if you change your Facebook password, or if it resets your login for security. If Settings (or your morning email) says the connection expired, tap **Reconnect Instagram & Facebook** and log in again. It takes under a minute and can be done from your phone.
 
 ## Part 5: Put it on your iPhone home screen (2 min)
 
@@ -109,13 +106,28 @@ This is just the app's address, not a secret, so Claude can do this step for you
 
 ---
 
+## Part 7: Turn on the morning email (5 min)
+
+The app builds a report every morning whether or not email is set up (Autopilot tab → **View today's report**). To have it land in your inbox at 8am it needs a free email-sending account:
+
+1. Go to **resend.com** → **Sign up** with the email address you want the report sent to. (The free plan is 100 emails a day; this uses one.)
+2. In Resend: **API Keys** → **Create API Key** → name it `crystal-studio`, permission **Sending access** → **Add** → copy the key (it starts with `re_` and is shown only once).
+3. In **Vercel** → **crystal-studio** → **Settings** → **Environment Variables** → add `RESEND_API_KEY` → paste → tick all environments → **Save**. Then **Deployments** → **⋯** → **Redeploy**.
+4. Open the app → **Autopilot** → **Morning report**: check the address, tap **Save address**, then **Send me one now**. The first one may land in Junk: open it and mark it **Not junk** so the rest arrive in your inbox.
+
+Until you verify your own domain with Resend, it will only deliver to the address you signed up with, and the email comes from `onboarding@resend.dev`. That's fine for a report to yourself. To send from `reports@crystalcosmetics.com.au` instead: Resend → **Domains** → **Add domain** → add the DNS records it shows at GoDaddy (they sit on a `send.` sub-domain and don't touch your Microsoft 365 email), then add `REPORT_EMAIL_FROM` = `Crystal Cosmetics <reports@crystalcosmetics.com.au>` in Vercel.
+
+---
+
 ## What's stored where
 
 | What | Where | Who can see it |
 |---|---|---|
-| Your app password, AI key, Meta app secret, Page token | Vercel environment variables (encrypted) | Only people with access to your Vercel account |
+| Your app password, AI key, Meta app secret, email key | Vercel environment variables (encrypted) | Only people with access to your Vercel account |
+| The Instagram/Facebook connection (Page token) | Upstash Redis, encrypted with a key made from your Meta app secret | Only the app. The database on its own can't reveal it |
 | Photos/videos you post | Vercel Blob (public links, like any Instagram photo) | Anyone with the exact link |
-| Captions and the post calendar | Upstash Redis via Vercel | Only the app |
+| Captions, the post calendar, the content bank, Autopilot settings, daily report numbers | Upstash Redis via Vercel | Only the app |
+| Website visit counts (no names, cookies or IP addresses; just totals per day) | Upstash Redis via Vercel | Only the app |
 | The app's code | GitHub (public, no secrets in it) | Anyone |
 
-**If you think a key has leaked:** delete it where it was made (Anthropic Console for the AI key; Meta app → Settings → Basic → **Reset** for the app secret; change your Facebook password for the Page token), make a new one, update it in Vercel, and redeploy.
+**If you think a key has leaked:** delete it where it was made (Anthropic Console for the AI key; Resend → API Keys for the email key; Meta app → Settings → Basic → **Reset** for the app secret; change your Facebook password for the Instagram/Facebook connection, then Reconnect), make a new one, update it in Vercel, and redeploy.

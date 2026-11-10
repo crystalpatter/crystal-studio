@@ -2,7 +2,7 @@
 // check exactly what would have been sent to Instagram and Facebook.
 import http from 'node:http';
 
-export function startMockGraph({ port = 5199, videoPolls = 2, fail = {} } = {}) {
+export function startMockGraph({ port = 5199, videoPolls = 2, fail = {}, media = null, insights = {} } = {}) {
   const calls = [];
   const containers = {};
   let n = 0;
@@ -26,7 +26,13 @@ export function startMockGraph({ port = 5199, videoPolls = 2, fail = {} } = {}) 
     }
 
     if (req.method === 'GET' && p === 'me')
-      return out(200, { id: 'PAGE1', name: 'Crystal Cosmetics', instagram_business_account: { id: 'IG1', username: 'bycrystalcosmetics', followers_count: 763 } });
+      return out(200, { id: 'PAGE1', name: 'Crystal Cosmetics', followers_count: 412, instagram_business_account: { id: 'IG1', username: 'bycrystalcosmetics', followers_count: 763 } });
+    // Past posts and their numbers, for the Autopilot "re-share a top post" tests.
+    if (req.method === 'GET' && p === 'IG1/media' && media && (params.fields || '').includes('children')) return out(200, { data: media });
+    if (req.method === 'GET' && /^OLD\d+\/insights$/.test(p)) {
+      const s = insights[p.split('/')[0]] || {};
+      return out(200, { data: params.metric.split(',').filter((m) => m in s).map((m) => ({ name: m, values: [{ value: s[m] }] })) });
+    }
     if (req.method === 'POST' && p === 'IG1/media') {
       const cid = id('C');
       containers[cid] = { params, polls: params.media_type === 'REELS' || params.media_type === 'VIDEO' ? videoPolls : 0, published: false };

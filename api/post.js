@@ -46,6 +46,7 @@ export const PATCH = authed(async (request) => {
 
   if (b.action === 'now') {
     if (post.status !== 'scheduled') return fail('This post has already gone out.');
+    post.hold = false;
     post.scheduledAt = null;
     post.status = 'publishing';
     await savePost(post);

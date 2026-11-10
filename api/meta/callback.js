@@ -1,9 +1,9 @@
 // Step 2 of connecting: Facebook sends Crystal back here. We swap the one-time
-// code for a Page access token that doesn't expire, and show it to her ONCE so
-// she can paste it into Vercel as META_PAGE_TOKEN. It's never stored or logged
-// by the app; only Vercel's encrypted environment variables hold it.
+// code for a Page access token that doesn't expire and save it encrypted in
+// the app's database (see lib/token.js), so reconnecting is a single tap.
 import { isLoggedIn, readCookie, sign } from '../../lib/auth.js';
-import { graph, GRAPH_VERSION } from '../../lib/graph.js';
+import { graph, GRAPH_VERSION, forgetToken } from '../../lib/graph.js';
+import { saveToken } from '../../lib/token.js';
 import { redirectUri } from './start.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -58,30 +58,21 @@ export async function GET(request) {
     if (!list.length) {
       return page('No Page found', `<h1>No Facebook Page found</h1><p>Facebook didn't share any Pages with the app. Tap Connect again and, on the Facebook screen, choose <b>Edit access</b> (or <b>Edit settings</b>) and tick your Crystal Cosmetics Page and Instagram account.</p>`);
     }
-    const items = list
-      .map((p, i) => {
-        const ig = p.instagram_business_account;
-        return `<section class="token-box">
-<h2>${esc(p.name)}</h2>
-<p>${ig ? `Instagram linked: <b>@${esc(ig.username)}</b> ✓` : '⚠️ No Instagram account is linked to this Page. Link it first (setup guide, Part 1), then connect again.'}</p>
-${ig ? `<label for="t${i}">Your META_PAGE_TOKEN (keep it private)</label>
-<textarea id="t${i}" readonly rows="4">${esc(p.access_token)}</textarea>
-<button class="btn" data-copy="t${i}">Copy token</button>` : ''}
-</section>`;
-      })
-      .join('');
+    // Save the token (encrypted) for the Page that has Instagram linked, so there
+    // is nothing to copy or paste. It is never shown, logged or sent anywhere else.
+    const chosen = list[0];
+    const ig = chosen.instagram_business_account;
+    if (!ig) {
+      return page('Instagram not linked', `<h1>No Instagram account is linked to your Page</h1><p>Facebook shared <b>${esc(chosen.name)}</b>, but it has no Instagram Business account linked. Link @bycrystalcosmetics to the Page first (setup guide, Part 1), then tap Connect again.</p>`);
+    }
+    await saveToken(chosen.access_token, { page: chosen.name, ig: ig.username });
+    forgetToken();
     return page(
-      'Connected: one last step',
-      `<h1>Almost done: save your token in Vercel</h1>
-<ol>
-<li>Tap <b>Copy token</b> below (for the Page with <b>@bycrystalcosmetics</b>).</li>
-<li>Open <b>vercel.com</b> → your <b>crystal-studio</b> project → <b>Settings</b> → <b>Environment Variables</b>.</li>
-<li>Add a variable named <code>META_PAGE_TOKEN</code>, paste the token as the value, tick all environments, and <b>Save</b>. (If it already exists, edit it and paste the new one.)</li>
-<li>Go to <b>Deployments</b>, tap the ⋯ next to the top one, and choose <b>Redeploy</b>.</li>
-<li>Come back to the app → <b>Settings</b>. It should now say <b>@bycrystalcosmetics connected</b>.</li>
-</ol>
-<p class="small">This token lets the app post to your Page and Instagram. It isn't saved anywhere except where you paste it. Don't share it or put it in messages or emails. If you ever think it's leaked, change your Facebook password and connect again.</p>
-${items}`
+      'Connected',
+      `<h1>Connected ✓</h1>
+<p>Crystal Studio is now connected to <b>@${esc(ig.username)}</b> on Instagram and the <b>${esc(chosen.name)}</b> Facebook Page.</p>
+<p>There's nothing else to do. Scheduled posts and Autopilot carry on from here.</p>
+<p class="small">The connection is stored encrypted and is only used to post and read your own stats. If you ever think it has leaked, change your Facebook password and connect again.</p>`
     );
   } catch (err) {
     return page('Not connected', `<h1>Something went wrong</h1><p>${esc(err.userMessage || err.message)}</p><p>Check META_APP_ID and META_APP_SECRET in Vercel, then try again.</p>`);

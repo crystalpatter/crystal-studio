@@ -2,10 +2,10 @@
   "name": "crystal-studio",
   "private": true,
   "type": "module",
-  "description": "Crystal Studio: post once to Instagram and Facebook for Crystal Cosmetics. Static PWA in public/ plus Vercel functions in api/.",
+  "description": "Crystal Studio: post once to Instagram and Facebook for Crystal Cosmetics, with an Autopilot content bank and an 8am email report. Static PWA in public/ plus Vercel functions in api/.",
   "scripts": {
     "dev": "node dev/server.js",
-    "test": "node dev/test-publish.js",
+    "test": "node dev/test-publish.js && node dev/test-autopilot.js",
     "vendor": "esbuild dev/blob-client-entry.js --bundle --format=esm --minify --outfile=public/vendor/blob-client.js"
   },
   "engines": {

@@ -42,3 +42,20 @@ You pick photos or a video in the app. Photos are converted to JPEG and cropped 
 - **Facebook carousels** become a multi-photo post. If a carousel mixes photos and videos, Facebook gets the photos only.
 - **Music** can't be added to Reels through Meta's API. Add trending audio in the Instagram app before exporting, or post that Reel from Instagram directly.
 - **Editing or deleting** a post that's already live is done in the Instagram/Facebook apps. The app's "Remove" only takes it off the calendar.
+
+## Autopilot and the morning report (10 November 2026)
+
+**Goal:** posts keep going out and Crystal knows what's happening each morning, without paying a scheduling company and without relying on her having time that day.
+
+- **Runs in the cloud, not on the Mac.** A desktop program only works while the Mac is on and awake. This runs inside the existing app on Vercel, so it works from anywhere and she controls it from her phone.
+- **Triggers:** Vercel's free scheduler allows jobs that run once a day, some time within their hour. `vercel.json` has one per hour for publishing, plus two for the morning report (7am builds it and asks the email service to hold it until 8:00; 8am is the backup). GitHub's scheduler stays as a second backup: in practice it was only firing a few times a day, not every 10 minutes, which is why it's no longer the main trigger.
+- **Content bank + re-shares:** see `lib/autopilot.js` and `lib/evergreen.js`. A re-share is an ordinary scheduled post on the Calendar, so it can be moved, skipped or swapped. Files are copied from Instagram into Blob storage first (Instagram's links expire in hours); video copies are deleted two days after the re-share is live so storage doesn't fill up.
+- **Approvals:** off by default for re-shares because the brief is "don't depend on Crystal". "Ask me first" is one switch. Email buttons are signed links that open a confirm page, so an email scanner opening the link can't approve or cancel anything.
+- **Email:** Resend's free plan (100 a day). It's the one new account in this phase; nothing free can send email without one.
+- **Website numbers:** the website's `js/main.js` sends an anonymous ping to `/api/t` (page viewed / Book tapped / call tapped / form sent, plus a rough source such as Instagram or Google Ads). No cookies, nothing stored about the visitor, so no consent banner is needed. Chosen over Google Analytics to keep everything in one report and avoid another account.
+- **Instagram/Facebook connection now lives in the database, encrypted** (`lib/token.js`), instead of being pasted into Vercel. Reason: the connection expired within a day of first being set up, and the old fix was six steps on a computer. Now it's "tap Reconnect, log in on Facebook". The key is derived from `META_APP_SECRET`, which stays in Vercel only. An old `META_PAGE_TOKEN` in Vercel still works as a fallback and can be deleted once reconnected.
+
+**Not connected (and why):**
+- **Confirmed bookings from Timely.** Timely has no free way to hand bookings to another app. The report counts taps on the website's booking buttons instead.
+- **Google Ads / Meta Ads accounts.** The report shows whether ad clicks are reaching the website, which catches "the ads stopped". Spend and campaign status would need Google's and Meta's ads APIs (a Google developer token, and a Meta system-user token with `ads_read`).
+- **Replying to comments and DMs automatically.** Meta only allows this for apps that pass its App Review. The report tells her when new comments arrive instead.

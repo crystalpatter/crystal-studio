@@ -18,7 +18,6 @@ const mock = await startMockGraph({ port: 5198, videoPolls: 2, fail: { 'PAGE1/vi
 const { advance, runDue, facebookCaption } = await import('../lib/publisher.js');
 const store = await import('../lib/store.js');
 const { check } = await import('../public/js/guardrails.js');
-const login = await import('../api/login.js');
 const postsApi = await import('../api/posts.js');
 const postApi = await import('../api/post.js');
 const statusApi = await import('../api/status.js');
@@ -42,9 +41,9 @@ const callsTo = (p) => mock.calls.filter((c) => c.path === p);
 
 let cookie;
 await test('login rejects a wrong password and accepts the right one', async () => {
-  const bad = await login.POST(req('/api/login', { method: 'POST', body: { password: 'nope' } }));
+  const bad = await statusApi.POST(req('/api/status', { method: 'POST', body: { password: 'nope' } }));
   assert.equal(bad.status, 401);
-  const good = await login.POST(req('/api/login', { method: 'POST', body: { password: 'correct horse' } }));
+  const good = await statusApi.POST(req('/api/status', { method: 'POST', body: { password: 'correct horse' } }));
   assert.equal(good.status, 200);
   cookie = good.headers.get('set-cookie').split(';')[0];
 });

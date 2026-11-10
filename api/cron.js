@@ -2,7 +2,8 @@
 // backup (the app also nudges it whenever Crystal opens it). Each call:
 //   1. publishes any post whose time has come,
 //   2. lets Autopilot fill today's posting slot if it's still empty,
-//   3. sends the morning report if it's due and hasn't gone yet.
+//   3. sends the morning report if it's due and hasn't gone yet (built in the
+//      7am hour and held until 8:00; the 8am run is the backup).
 // Safe to call any time, as often as you like.
 import { json, fail } from '../lib/http.js';
 import { runDue } from '../lib/publisher.js';

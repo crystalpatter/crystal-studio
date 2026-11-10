@@ -72,7 +72,7 @@ const { advance } = await import('../lib/publisher.js');
 const { buildReport, renderEmail, renderText, subject } = await import('../lib/report.js');
 const { sendDaily } = await import('../lib/daily.js');
 const T = await import('../lib/time.js');
-const login = await import('../api/login.js');
+const statusApi = await import('../api/status.js');
 const postsApi = await import('../api/posts.js');
 const apApi = await import('../api/autopilot.js');
 const actApi = await import('../api/act.js');
@@ -93,7 +93,7 @@ async function test(name, fn) {
 }
 const req = (path, { method = 'GET', body, cookie, headers = {} } = {}) =>
   new Request(`http://localhost${path}`, { method, headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}), ...headers }, body: body ? JSON.stringify(body) : undefined });
-const cookie = (await login.POST(req('/api/login', { method: 'POST', body: { password: 'correct horse' } }))).headers.get('set-cookie').split(';')[0];
+const cookie = (await statusApi.POST(req('/api/status', { method: 'POST', body: { password: 'correct horse' } }))).headers.get('set-cookie').split(';')[0];
 
 // "Now" for the tests: 9am today, Gold Coast time, with today as the only posting day.
 const p0 = T.parts(Date.now());

@@ -18,7 +18,7 @@ async function api(path, opts = {}) {
     credentials: 'same-origin',
   });
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401 && path !== '/api/login') {
+  if (res.status === 401 && !opts.login) {
     show('login');
     throw new Error('Please log in again.');
   }
@@ -99,7 +99,7 @@ $('#login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   $('#login-error').textContent = '';
   try {
-    await api('/api/login', { method: 'POST', body: { password: $('#pw').value } });
+    await api('/api/status', { method: 'POST', login: true, body: { password: $('#pw').value } });
     $('#pw').value = '';
     await boot();
   } catch (err) {
@@ -107,7 +107,7 @@ $('#login-form').addEventListener('submit', async (e) => {
   }
 });
 $('#logout-btn').addEventListener('click', async () => {
-  await api('/api/login', { method: 'DELETE' }).catch(() => {});
+  await api('/api/status', { method: 'DELETE' }).catch(() => {});
   state.status = { loggedIn: false };
   show('login');
 });
@@ -704,7 +704,7 @@ $('#ap-test').addEventListener('click', async (e) => {
   e.target.disabled = true;
   toast('Building your report…', 15000);
   try {
-    const r = await api('/api/report', { method: 'POST' });
+    const r = await api('/api/autopilot', { method: 'POST', body: { action: 'test-report' } });
     toast(r.did === 'sent' ? `Sent to ${r.to}. Check your inbox (and Junk the first time).` : r.did === 'saved-not-sent' ? (r.why === 'no-recipient' ? 'Add and save an email address first.' : 'Email isn’t set up yet (RESEND_API_KEY is missing in Vercel).') : r.error || 'That didn’t send.', 8000);
   } catch (err) {
     toast(err.message, 8000);
@@ -817,7 +817,7 @@ async function boot() {
     $('#hashtags').value = store.get('hashtags') || '';
     $('#notes').value = store.get('notes') || '';
     updateCaptionInfo();
-    if (state.status.meta) api('/api/run', { method: 'POST' }).catch(() => {});
+    if (state.status.meta) api('/api/autopilot', { method: 'POST', body: { action: 'run' } }).catch(() => {});
   }
   route();
 }

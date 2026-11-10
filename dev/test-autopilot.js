@@ -115,8 +115,9 @@ const req = (path, { method = 'GET', body, cookie, headers = {} } = {}) =>
   new Request(`http://localhost${path}`, { method, headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}), ...headers }, body: body ? JSON.stringify(body) : undefined });
 const cookie = (await statusApi.POST(req('/api/status', { method: 'POST', body: { password: 'correct horse' } }))).headers.get('set-cookie').split(';')[0];
 
-// "Now" for the tests: 9am today, Gold Coast time, with today as the only posting day.
-const p0 = T.parts(Date.now());
+// "Now" for the tests: 9am TOMORROW, Gold Coast time, with that day as the only posting day.
+// (Tomorrow, so its 6pm slot is always still ahead of the real clock, whatever time the tests run.)
+const p0 = T.parts(Date.now() + DAY);
 const NOW = T.at(p0.y, p0.mo, p0.d, 9, 0);
 const SLOT = T.at(p0.y, p0.mo, p0.d, 18, 0);
 await saveConfig({ days: [p0.dow], hour: 18, minute: 0, emailTo: 'owner@example.com' });
@@ -334,6 +335,24 @@ await test('leads: a missing Instagram permission is reported plainly, and Faceb
   const l = await collectLeads(Date.now());
   assert.equal(l.status.instagram, 'permission');
   assert.equal(l.status.facebook, 'ok');
+});
+
+await test('leads: posts have comments but Meta names nobody → reported as a missing permission, not "nobody engaged"', async () => {
+  const keepC = { ...COMMENTS };
+  const keepF = FB_POSTS.splice(0);
+  for (const k of Object.keys(COMMENTS)) COMMENTS[k] = [];
+  // the pretend media list still says each post has comments
+  FB_POSTS.push({ id: 'PAGE1_9', permalink_url: 'https://www.facebook.com/PAGE1/posts/9', message: 'x', created_time: ago(30), comments: { data: [], summary: { total_count: 4 } }, reactions: { data: [], summary: { total_count: 9 } } });
+  mock.commentCountOverride = 3;
+  try {
+    const l = await collectLeads(Date.now());
+    assert.equal(l.status.instagram, 'permission');
+    assert.equal(l.status.facebook, 'permission');
+  } finally {
+    mock.commentCountOverride = null;
+    Object.assign(COMMENTS, keepC);
+    FB_POSTS.splice(0, FB_POSTS.length, ...keepF);
+  }
 });
 
 await test('morning report: connection check, posts, Instagram, website and "needs you"', async () => {

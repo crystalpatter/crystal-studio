@@ -4,6 +4,7 @@ import http from 'node:http';
 
 export function startMockGraph({ port = 5199, videoPolls = 2, fail = {}, media = null, insights = {}, comments = null, fbPosts = null } = {}) {
   const calls = [];
+  const api = { commentCountOverride: null };
   const containers = {};
   let n = 0;
   const id = (p) => `${p}${++n}`;
@@ -30,7 +31,7 @@ export function startMockGraph({ port = 5199, videoPolls = 2, fail = {}, media =
     // Who engaged (for the "people to reach out to" list).
     if (req.method === 'GET' && comments && /^(M|OLD)\d+\/comments$/.test(p)) return out(200, { data: comments[p.split('/')[0]] || [] });
     if (req.method === 'GET' && comments && p === 'IG1/media' && !(params.fields || '').includes('children') && (params.fields || '').includes('comments_count') && !(params.fields || '').includes('like_count'))
-      return out(200, { data: Object.keys(comments).map((id) => ({ id, permalink: `https://www.instagram.com/p/${id}/`, caption: `Caption of ${id}`, timestamp: new Date().toISOString(), comments_count: comments[id].length })) });
+      return out(200, { data: Object.keys(comments).map((id) => ({ id, permalink: `https://www.instagram.com/p/${id}/`, caption: `Caption of ${id}`, timestamp: new Date().toISOString(), comments_count: api.commentCountOverride ?? comments[id].length })) });
     if (req.method === 'GET' && fbPosts && p === 'PAGE1/published_posts') return typeof fbPosts === 'function' ? fbPosts(params, out) : out(200, { data: fbPosts });
     // Past posts and their numbers, for the Autopilot "re-share a top post" tests.
     if (req.method === 'GET' && p === 'IG1/media' && media && (params.fields || '').includes('children')) return out(200, { data: media });
@@ -72,5 +73,5 @@ export function startMockGraph({ port = 5199, videoPolls = 2, fail = {}, media =
     return out(404, { error: { code: 803, message: `Mock has no route for ${req.method} ${p}` } });
   });
   const failNext = (path, error) => (fail[path] = { times: 1, error });
-  return new Promise((resolve) => server.listen(port, () => resolve({ calls, containers, failNext, close: () => server.close() })));
+  return new Promise((resolve) => server.listen(port, () => resolve(Object.assign(api, { calls, containers, failNext, close: () => server.close() }))));
 }

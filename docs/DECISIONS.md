@@ -55,6 +55,7 @@ You pick photos or a video in the app. Photos are converted to JPEG and cropped 
 - **Website numbers:** the website's `js/main.js` sends an anonymous ping to `/api/t` (page viewed / Book tapped / call tapped / form sent, plus a rough source such as Instagram or Google Ads). No cookies, nothing stored about the visitor, so no consent banner is needed. Chosen over Google Analytics to keep everything in one report and avoid another account.
 - **Instagram/Facebook connection now lives in the database, encrypted** (`lib/token.js`), instead of being pasted into Vercel. Reason: the connection expired within a day of first being set up, and the old fix was six steps on a computer. Now it's "tap Reconnect, log in on Facebook". The key is derived from `META_APP_SECRET`, which stays in Vercel only. An old `META_PAGE_TOKEN` in Vercel still works as a fallback and can be deleted once reconnected.
 
+- **Heads-up:** Vercel's dashboard now labels Cron Jobs as "legacy" and points to its newer "Schedules" feature. The 24 hourly jobs are registered and running; if Vercel ever retires Cron Jobs, move the same list to Schedules (same free limits at the time of writing).
 - **12-function limit:** Vercel's free plan allows at most 12 files under `api/`. The project is at exactly 12, which is why login lives in `api/status.js` and the report in `api/autopilot.js`. A new endpoint has to share a file with an existing one.
 
 **Not connected (and why):**

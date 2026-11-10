@@ -347,7 +347,8 @@ await test('leads: posts have comments but Meta names nobody → reported as a m
   try {
     const l = await collectLeads(Date.now());
     assert.equal(l.status.instagram, 'permission');
-    assert.equal(l.status.facebook, 'permission');
+    assert.equal(l.status.facebook, 'withheld');
+    assert.equal(l.status.facebookCounted, 13);
   } finally {
     mock.commentCountOverride = null;
     Object.assign(COMMENTS, keepC);

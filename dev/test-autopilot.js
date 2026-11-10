@@ -313,7 +313,7 @@ await test('the Facebook connection is stored encrypted and preferred over the o
 await test('leads: everyone who commented or reacted is listed with their profile, own replies are noticed', async () => {
   const l = await collectLeads(Date.now());
   assert.equal(l.available, true);
-  assert.deepEqual(l.status, { instagram: 'ok', facebook: 'ok', facebookHidden: 1 });
+  assert.deepEqual(l.status, { instagram: 'ok', facebook: 'ok', instagramRead: { posts: 2, seen: 4, named: 4 }, facebookHidden: 1 });
   const names = l.fresh.map((x) => x.name);
   assert.deepEqual(names, ['@sarah.gc', 'Heather D'], 'new in the last 24h, newest first; her own comments are not leads');
   const sarah = l.fresh[0];
